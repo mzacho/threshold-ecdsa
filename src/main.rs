@@ -2,6 +2,11 @@ use getrandom::getrandom;
 use std::collections::HashMap;
 use std::env;
 use std::ops::{BitAnd, BitXor};
+// use num_bigint::{BigUint, RandBigInt};
+// use num_integer::Integer;
+// use num_traits::{FromPrimitive, Zero};
+
+// type Nat = BigUint; // represent natural numbers as BigUint
 
 fn main() {
     let (x, y) = read_args(env::args());
@@ -48,8 +53,8 @@ struct Node {
 
 #[derive(Debug, Clone, Copy)]
 struct Shares {
-    x: bool,
-    y: bool,
+    x: bool, // todo: Nat
+    y: bool, // todo: Nat
 }
 
 impl Shares {
