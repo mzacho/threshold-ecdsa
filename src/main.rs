@@ -1,8 +1,10 @@
 use getrandom::getrandom;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::ops::{BitAnd, BitXor};
-// use num_bigint::{BigUint, RandBigInt};
+use std::rc::Rc;
+// use num_bigint::BigUint;
 // use num_integer::Integer;
 // use num_traits::{FromPrimitive, Zero};
 
@@ -45,10 +47,11 @@ type NodeId = usize;
 
 #[derive(Debug, Clone)]
 struct Node {
-    in_1: Option<NodeId>,
-    in_2: Option<NodeId>,
+    id: usize,
+    in_1: Rc<Option<Node>>, // left parent
+    in_2: Rc<Option<Node>>, // right parent
     op: Gate,
-    value: Option<Shares>,
+    value: RefCell<Option<Shares>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -113,53 +116,59 @@ impl Default for Shares {
 impl Default for Node {
     fn default() -> Self {
         Node {
-            in_1: None,
-            in_2: None,
+            id: 0,
+            in_1: Rc::new(None),
+            in_2: Rc::new(None),
             op: Gate::IN,
-            value: None,
+            value: RefCell::new(None),
         }
     }
 }
 
 impl Node {
-    fn and(pid1: usize, pid2: usize) -> Self {
+    fn and(p1: &Rc<Option<Node>>, p2: &Rc<Option<Node>>) -> Self {
         Node {
-            in_1: Some(pid1),
-            in_2: Some(pid2),
+            id: 0,
+            in_1: Rc::clone(p1),
+            in_2: Rc::clone(p2),
             op: Gate::AND,
             ..Default::default()
         }
     }
 
-    fn xor(pid1: usize, pid2: usize) -> Self {
+    fn xor(p1: &Node, p2: &Node) -> Self {
         Node {
-            in_1: Some(pid1),
-            in_2: Some(pid2),
+            id: 0,
+            in_1: Rc::clone(p1),
+            in_2: Rc::clone(p2),
             op: Gate::XOR,
             ..Default::default()
         }
     }
 
-    fn xor_unary(pid1: usize, c: Const) -> Self {
+    fn xor_unary(p: &Rc<Option<Node>>, c: Const) -> Self {
         Node {
-            in_1: Some(pid1),
-            in_2: None,
+            id: 0,
+            in_1: Rc::clone(p),
+            in_2: Rc::new(None),
             op: Gate::XORUnary(c),
             ..Default::default()
         }
     }
 
-    fn and_unary(pid: usize, c: Const) -> Self {
+    fn and_unary(p: &Rc<Option<Node>>, c: Const) -> Self {
         Node {
-            in_1: Some(pid),
+            id: 0,
+            in_1: Rc::clone(p),
             op: Gate::ANDUnary(c),
             ..Default::default()
         }
     }
 
-    fn open(pid: usize) -> Self {
+    fn open(p: &Rc<Option<Node>>) -> Self {
         Node {
-            in_1: Some(pid),
+            id: 0,
+            in_1: Rc::clone(p),
             op: Gate::OPEN,
             ..Default::default()
         }
@@ -167,7 +176,8 @@ impl Node {
 
     fn in_(s: Shares) -> Self {
         Node {
-            value: Some(s),
+            id: 0,
+            value: RefCell::new(Some(s)),
             ..Node::default()
         }
     }
@@ -197,7 +207,7 @@ fn as_nodes(arr: [bool; 3]) -> [Node; 3] {
 
         let s = Shares { x: r ^ b, y: r };
 
-        nodes[i].value = Some(s);
+        nodes[i].value = RefCell::new(Some(s));
     }
     nodes
 }
@@ -207,6 +217,10 @@ struct Circuit {
     nodes: Vec<Node>,
 }
 
+// Env is a mapping from node ids to openings of the secret
+// flowing out of that node. Its used to lookup variables
+// referred to by constant gates (in contrast to literals
+// hard-coded into the constant gates).
 type Env = HashMap<usize, bool>;
 
 impl Circuit {
@@ -215,114 +229,92 @@ impl Circuit {
     // It does so by iterating over all nodes, and propagating values from
     // parents to children with respect to the operation of the current node.
 
-    fn eval(&mut self) -> Shares {
-        // Env is a mapping from node ids to openings of the secret
-        // flowing out of that node. Its used to lookup variables
-        // referred to by constant gates (in contrast to literals
-        // hard-coded into the constant gates).
-
+    fn eval(&self) -> Shares {
         let mut env: Env = HashMap::new();
 
-        let len = self.nodes.len();
-        for i in 0..len {
-            let node = &self.nodes[i];
-            if let Some(_) = node.value {
+        for (id, node) in self.nodes.iter().enumerate() {
+            if node.value.borrow().is_some() {
+                // Node has been evaluated to a value
                 continue;
             }
+            // Resulting value
+            let v = RefCell::new(None);
+
             match node.op {
                 Gate::XORUnary(c) => {
-                    if let Some(p1_id) = node.in_1 {
-                        let p1 = &self.nodes[p1_id];
-                        if let Some(p1_val) = p1.value {
-                            let node = &mut self.nodes[i];
-                            let b = Self::lookup_const(&env, c);
-                            node.value = Some(p1_val.xor(b));
-                        } else {
-                            // In this case a node's parent has no value yet
-                            // Since we assume the circuit only has forward
-                            // gates, then this shouldn't be possible
-                            panic!("expected value on XOR gate parent")
-                        }
-                    } else {
+                    let b = Self::lookup_const(&env, c);
+                    if node.in_1.is_none() {
                         panic!("expected parent id on XOR gate")
                     }
+                    let parent = node.in_1.unwrap();
+                    if parent.value.borrow().is_none() {
+                        // In this case a node's parent has no value yet
+                        // Since we assume the circuit only has forward
+                        // gates, then this shouldn't be possible
+                        panic!("expected value on XOR gate parent")
+                    } else {
+                        let p1_val = parent.value.borrow().unwrap();
+                        *v.borrow_mut() = Some(p1_val.xor(b));
+                    }
                 }
-                Gate::AND => match (node.in_1, node.in_2) {
-                    (Some(p1_id), Some(p2_id)) => {
-                        let p1 = &self.nodes[p1_id];
-                        let p2 = &self.nodes[p2_id];
-                        match (p1.value, p2.value) {
-                            (Some(v1), Some(v2)) => {
-                                let node = &mut self.nodes[i];
-                                node.value = Some(v1 & v2);
-                            }
-                            (_, _) => panic!("no values on ps of AND"),
-                        }
+                Gate::AND => {
+                    if node.in_1.is_none() || node.in_2.is_none() {
+                        panic!("no p_ids on AND");
                     }
-                    (_, _) => panic!("no p_ids on AND"),
-                },
-                Gate::XOR => match (node.in_1, node.in_2) {
-                    (Some(p1_id), Some(p2_id)) => {
-                        let p1 = &self.nodes[p1_id];
-                        let p2 = &self.nodes[p2_id];
-                        match (p1.value, p2.value) {
-                            (Some(v1), Some(v2)) => {
-                                let node = &mut self.nodes[i];
-                                node.value = Some(v1 ^ v2);
-                            }
-                            (_, _) => panic!("no values on parents of AND"),
-                        }
+                    let p1 = node.in_1.unwrap();
+                    let p2 = node.in_2.unwrap();
+                    if p1.value.borrow().is_none() || p2.value.borrow().is_none() {
+                        panic!("no values on parents of AND")
                     }
-                    (_, _) => panic!("no parent ids on AND gate"),
-                },
+                    let v1 = p1.value.borrow().unwrap();
+                    let v2 = p2.value.borrow().unwrap();
+                    *v.borrow_mut() = Some(v1 & v2);
+                }
+                Gate::XOR => {
+                    if node.in_1.is_none() || node.in_2.is_none() {
+                        panic!("no p_ids on AND");
+                    }
+                    let p1 = node.in_1.unwrap();
+                    let p2 = node.in_2.unwrap();
+                    if p1.value.borrow().is_none() || p2.value.borrow().is_none() {
+                        panic!("no values on parents of AND")
+                    }
+                    let v1 = p1.value.borrow().unwrap();
+                    let v2 = p2.value.borrow().unwrap();
+                    *v.borrow_mut() = Some(v1 ^ v2);
+                }
                 Gate::IN => continue,
                 Gate::OPEN => {
-                    match node.in_1 {
-                        Some(pid) => {
-                            let p = &self.nodes[pid];
-                            if let Some(s) = p.value {
-                                // Update the environment
-                                env.insert(i, s.val());
-                            } else {
-                                panic!("no value to open");
-                            }
-                        }
-                        None => panic!("no parent on open gate"),
+                    if node.in_1.is_none() {
+                        panic!("no parent on open gate");
+                    }
+                    let p = node.in_1.unwrap();
+                    if p.value.borrow().is_none() {
+                        panic!("no value to open");
+                    } else {
+                        // Update the environment
+                        env.insert(id, p.value.borrow().unwrap().val());
                     }
                 }
                 Gate::ANDUnary(c) => {
-                    if let Some(p1_id) = node.in_1 {
-                        let p1 = &self.nodes[p1_id];
-                        if let Some(p1_val) = p1.value {
-                            let node = &mut self.nodes[i];
-                            let b = match c {
-                                Const::Literal(b) => b,
-                                Const::Var(id) => {
-                                    if let Some(b) = env.get(&id) {
-                                        *b
-                                    } else {
-                                        panic!("could not look up const var");
-                                    }
-                                }
-                                Const::AND(id1, id2) => match (env.get(&id1), env.get(&id2)) {
-                                    (Some(b1), Some(b2)) => *b1 & *b2,
-                                    (_, _) => panic!("xor const and"),
-                                },
-                            };
-                            node.value = Some(p1_val.and(b));
-                        } else {
-                            // In this case a node's parent has no value yet
-                            // Since we assume the circuit only has forward
-                            // gates, then this shouldn't be possible
-                            panic!("expected value on XOR gate parent")
-                        }
-                    } else {
+                    let b = Self::lookup_const(&env, c);
+                    if node.in_1.is_none() {
                         panic!("expected parent id on XOR gate")
+                    }
+                    let parent = node.in_1.unwrap();
+                    if parent.value.borrow().is_none() {
+                        // In this case a node's parent has no value yet
+                        // Since we assume the circuit only has forward
+                        // gates, then this shouldn't be possible
+                        panic!("expected value on XOR gate parent")
+                    } else {
+                        let p1_val = parent.value.borrow().unwrap();
+                        *v.borrow_mut() = Some(p1_val.and(b));
                     }
                 }
             }
         }
-        self.nodes.last().unwrap().value.unwrap()
+        self.nodes.last().unwrap().value.borrow().unwrap()
     }
 
     fn lookup_const(e: &Env, c: Const) -> bool {
@@ -377,7 +369,8 @@ impl Circuit {
 
                     // Insert XOR gate with inputs pid1 and u
                     let did = i + 1;
-                    self.insert_node(did, Node::xor(pid1, uid));
+                    self.insert_node(did, Node::xor(pid1, &pid1));
+                    // self.insert_node(did, Node::xor(pid1, uid));
 
                     // Insert input gate for v
                     let vid = i + 2;
@@ -444,9 +437,10 @@ impl Circuit {
         // therefore skip elements [0; index].
 
         let len = self.nodes.len();
-        for i in index + 1..len {
-            if let Some(pid) = self.nodes[i].in_1 {
-                if pid >= index - 1 {
+        for i in index + 1..len {            
+            if self.nodes[i].in_1.is_some() {
+                let p = self.nodes[i].in_1.unwrap();
+                if p.id >= index - 1 {
                     self.nodes[i].in_1 = Some(pid + 1);
                 }
             }
@@ -624,8 +618,6 @@ fn str_to_nodes(x: &str, y: &str) -> ([Node; 3], [Node; 3]) {
     let in_bob = as_nodes(bt_bob);
     (in_alice, in_bob)
 }
-
-
 
 // --------------- tests ----------------
 
