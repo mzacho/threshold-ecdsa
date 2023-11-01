@@ -1,11 +1,11 @@
 use getrandom::getrandom;
+use num_bigint::{BigUint, RandBigInt, ToBigUint};
+use num_integer::Integer;
+use num_traits::{FromPrimitive, Zero};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::ops::{BitAnd, BitXor};
-use num_bigint::{BigUint, RandBigInt, ToBigUint};
-use num_integer::Integer;
-use num_traits::{FromPrimitive, Zero};
 
 // type Nat = BigUint; // represent natural numbers as BigUint
 
@@ -55,7 +55,7 @@ struct Node {
 #[derive(Debug, Clone)]
 struct Shares {
     x: BigUint,
-    y: BigUint, 
+    y: BigUint,
 }
 
 impl Shares {
@@ -107,7 +107,10 @@ impl BitXor for Shares {
 
 impl Default for Shares {
     fn default() -> Self {
-        Shares { x: BigUint::from_i64(1).unwrap(), y: BigUint::from_i64(1).unwrap()}
+        Shares {
+            x: BigUint::from_i64(1).unwrap(),
+            y: BigUint::from_i64(1).unwrap(),
+        }
     }
 }
 
@@ -191,8 +194,11 @@ fn as_nodes(arr: [BigUint; 3]) -> [Node; 3] {
         //
         // First sample a random bit
 
-        let r_bool = (buf[0] >> i) % 2 != 0;
-        let mut r = if r_bool { BigUint::from_i64(1).unwrap() } else { BigUint::from_i64(0).unwrap() };
+        let r = if (buf[0] >> i) % 2 != 0 {
+            BigUint::from_i64(1).unwrap()
+        } else {
+            BigUint::from_i64(0).unwrap()
+        };
 
         // Then assign Alices share to r XOR b
         // and Bobs share to r
@@ -457,11 +463,11 @@ fn deal_rands() -> Rands {
     if let Err(e) = getrandom(&mut buf) {
         panic!("{e}");
     }
-    let ux : BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let uy : BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let vx : BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let vy : BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let wx : BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let ux: BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let uy: BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let vx: BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let vy: BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let wx: BigUint = BigUint::from_u8(buf[0]).unwrap();
 
     Rands {
         u: Shares { x: ux, y: uy },
@@ -592,7 +598,11 @@ fn parse_blood_type(s: &str) -> u8 {
 }
 
 fn as_bool_arr(n: u8) -> [BigUint; 3] {
-    let mut res = [BigUint::from_i64(0).unwrap(), BigUint::from_i64(0).unwrap(), BigUint::from_i64(0).unwrap()];
+    let mut res = [
+        BigUint::from_i64(0).unwrap(),
+        BigUint::from_i64(0).unwrap(),
+        BigUint::from_i64(0).unwrap(),
+    ];
     for i in 0..3 {
         res[2 - i] = BigUint::from_u8(((n >> i) % 2 != 0) as u8).unwrap();
     }
@@ -611,6 +621,10 @@ fn str_to_nodes(x: &str, y: &str) -> ([Node; 3], [Node; 3]) {
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Add;
+
+    use num_traits::One;
+
     use super::*;
 
     fn single_and_gate(x: Node, y: Node) -> Circuit {
@@ -633,7 +647,7 @@ mod tests {
         let and = Node::and(xa_id, ya_id);
         let and_id = push_node(&mut g, and);
 
-        let xor = Node::xor_unary(and_id, Const::Literal(true));
+        let xor = Node::xor_unary(and_id, Const::Literal(One::one()));
         push_node(&mut g, xor);
         g
     }
@@ -650,7 +664,7 @@ mod tests {
         let and = Node::and(and_id, ya_id);
         let _ = push_node(&mut g, and);
 
-        //let xor = Node::xor_unary(and_id, Const::Literal(true));
+        //let xor = Node::xor_unary(and_id, Const::Literal(One::one()));
         //push_node(&mut g, xor);
         g
     }
@@ -667,7 +681,7 @@ mod tests {
         let and = Node::and(xa_id, xor_id);
         let and_id = push_node(&mut g, and);
 
-        let xor = Node::xor_unary(and_id, Const::Literal(true));
+        let xor = Node::xor_unary(and_id, Const::Literal(One::one()));
         push_node(&mut g, xor);
         g
     }
@@ -677,14 +691,15 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [true, false] {
-                for b2 in [true, false] {
-                    for b3 in [true, false] {
-                        for b4 in [true, false] {
+            for b1 in [One::one(), Zero::zero()] {
+                for b2 in [One::one(), Zero::zero()] {
+                    for b3 in [One::one(), Zero::zero()] {
+                        for b4 in [One::one(), Zero::zero()] {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
-                            let mut g: Circuit = single_and_gate(Node::in_(x.clone()), Node::in_(y.clone()));
+                            let mut g: Circuit =
+                                single_and_gate(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), x.val() & y.val());
@@ -700,17 +715,18 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [true, false] {
-                for b2 in [true, false] {
-                    for b3 in [true, false] {
-                        for b4 in [true, false] {
+            for b1 in [One::one(), Zero::zero()] {
+                for b2 in [One::one(), Zero::zero()] {
+                    for b3 in [One::one(), Zero::zero()] {
+                        for b4 in [One::one(), Zero::zero()] {
                             let x: Shares = Shares { x: b1, y: b2 };
                             let y: Shares = Shares { x: b3, y: b4 };
 
-                            let mut g = and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
+                            let mut g =
+                                and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
-                            assert_eq!(res.val(), (x.val() & y.val()) ^ true);
+                            assert_eq!(res.val(), (x.val() & y.val()) ^ &One::one());
                         }
                     }
                 }
@@ -723,17 +739,17 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [true, false] {
-                for b2 in [true, false] {
-                    for b3 in [true, false] {
-                        for b4 in [true, false] {
+            for b1 in [One::one(), Zero::zero()] {
+                for b2 in [One::one(), Zero::zero()] {
+                    for b3 in [One::one(), Zero::zero()] {
+                        for b4 in [One::one(), Zero::zero()] {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
                             let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
-                            assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ true);
+                            assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ &One::one());
                         }
                     }
                 }
@@ -746,17 +762,17 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [true, false] {
-                for b2 in [true, false] {
-                    for b3 in [true, false] {
-                        for b4 in [true, false] {
+            for b1 in [One::one(), Zero::zero()] {
+                for b2 in [One::one(), Zero::zero()] {
+                    for b3 in [One::one(), Zero::zero()] {
+                        for b4 in [One::one(), Zero::zero()] {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
                             let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
-                            assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ true);
+                            assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ &One::one());
                         }
                     }
                 }
@@ -769,10 +785,10 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [true, false] {
-                for b2 in [true, false] {
-                    for b3 in [true, false] {
-                        for b4 in [true, false] {
+            for b1 in [One::one(), Zero::zero()] {
+                for b2 in [One::one(), Zero::zero()] {
+                    for b3 in [One::one(), Zero::zero()] {
+                        for b4 in [One::one(), Zero::zero()] {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
@@ -787,7 +803,7 @@ mod tests {
         }
     }
 
-    fn test_bedoza_helper(x: &str, y: &str, expectation: bool) {
+    fn test_bedoza_helper(x: &str, y: &str, expectation: BigUint) {
         let (in_alice, in_bob) = str_to_nodes(x, y);
         let mut g: Circuit = init_circuit(in_alice, in_bob);
         g.transform_and_gates();
@@ -801,33 +817,33 @@ mod tests {
         let plus = ["AB+", "A+", "B+", "o+"];
 
         for x in [minus, plus].concat() {
-            test_bedoza_helper(x, x, true);
+            test_bedoza_helper(x, x, One::one());
         }
 
         for i in 0..4 {
-            test_bedoza_helper(plus[i], minus[i], true);
-            test_bedoza_helper(minus[i], plus[i], false);
+            test_bedoza_helper(plus[i], minus[i], One::one());
+            test_bedoza_helper(minus[i], plus[i], Zero::zero());
         }
 
         for i in 1..4 {
-            test_bedoza_helper(plus[0], plus[i], true);
-            test_bedoza_helper(minus[0], minus[i], true);
-            test_bedoza_helper(plus[0], minus[i], true);
+            test_bedoza_helper(plus[0], plus[i], One::one());
+            test_bedoza_helper(minus[0], minus[i], One::one());
+            test_bedoza_helper(plus[0], minus[i], One::one());
         }
 
         for i in 0..4 {
             for j in (i + 1)..4 {
-                test_bedoza_helper(plus[j], plus[i], false);
-                test_bedoza_helper(minus[j], plus[i], false);
-                test_bedoza_helper(minus[j], minus[i], false);
-                test_bedoza_helper(plus[j], minus[i], false);
+                test_bedoza_helper(plus[j], plus[i], Zero::zero());
+                test_bedoza_helper(minus[j], plus[i], Zero::zero());
+                test_bedoza_helper(minus[j], minus[i], Zero::zero());
+                test_bedoza_helper(plus[j], minus[i], Zero::zero());
             }
         }
 
         for i in 1..3 {
-            test_bedoza_helper(plus[3], plus[i], false);
-            test_bedoza_helper(minus[3], minus[i], false);
-            test_bedoza_helper(plus[3], minus[i], false);
+            test_bedoza_helper(plus[3], plus[i], Zero::zero());
+            test_bedoza_helper(minus[3], minus[i], Zero::zero());
+            test_bedoza_helper(plus[3], minus[i], Zero::zero());
         }
     }
 
