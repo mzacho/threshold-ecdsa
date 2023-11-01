@@ -3,9 +3,9 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::ops::{BitAnd, BitXor};
-// use num_bigint::{BigUint, RandBigInt};
-// use num_integer::Integer;
-// use num_traits::{FromPrimitive, Zero};
+use num_bigint::{BigUint, RandBigInt, ToBigUint};
+use num_integer::Integer;
+use num_traits::{FromPrimitive, Zero};
 
 // type Nat = BigUint; // represent natural numbers as BigUint
 
@@ -35,9 +35,9 @@ enum Gate {
     OPEN,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum Const {
-    Literal(bool),
+    Literal(BigUint),
     Var(usize),
     AND(usize, usize),
 }
@@ -54,19 +54,19 @@ struct Node {
 
 #[derive(Debug, Clone)]
 struct Shares {
-    x: bool, // todo: Nat
-    y: bool, // todo: Nat
+    x: BigUint,
+    y: BigUint, 
 }
 
 impl Shares {
-    fn xor(&self, c: bool) -> Shares {
+    fn xor(&self, c: BigUint) -> Shares {
         Shares {
             x: self.x ^ c,
             y: self.y,
         }
     }
 
-    fn and(&self, c: bool) -> Shares {
+    fn and(&self, c: BigUint) -> Shares {
         Shares {
             x: self.x & c,
             y: self.y & c,
@@ -74,7 +74,7 @@ impl Shares {
     }
 
     // Reconstruct the secret from the shares
-    fn val(&self) -> bool {
+    fn val(&self) -> BigUint {
         self.x ^ self.y
     }
 
@@ -107,7 +107,7 @@ impl BitXor for Shares {
 
 impl Default for Shares {
     fn default() -> Self {
-        Shares { x: true, y: true }
+        Shares { x: BigUint::from_i64(1).unwrap(), y: BigUint::from_i64(1).unwrap()}
     }
 }
 
@@ -177,7 +177,7 @@ impl Node {
 // Converts an array of boolean values, representing the
 // input of Alice or Bob, into input nodes, to be used in
 // the boolean circuit.
-fn as_nodes(arr: [bool; 3]) -> [Node; 3] {
+fn as_nodes(arr: [BigUint; 3]) -> [Node; 3] {
     // Sample random bits
     let mut buf = [0];
     if let Err(e) = getrandom(&mut buf) {
@@ -191,7 +191,8 @@ fn as_nodes(arr: [bool; 3]) -> [Node; 3] {
         //
         // First sample a random bit
 
-        let r = (buf[0] >> i) % 2 != 0;
+        let r_bool = (buf[0] >> i) % 2 != 0;
+        let mut r = if r_bool { BigUint::from_i64(1).unwrap() } else { BigUint::from_i64(0).unwrap() };
 
         // Then assign Alices share to r XOR b
         // and Bobs share to r
@@ -208,7 +209,7 @@ struct Circuit {
     nodes: Vec<Node>,
 }
 
-type Env = HashMap<NodeId, bool>;
+type Env = HashMap<NodeId, BigUint>;
 
 impl Circuit {
     // Evaluates the circuit and returns the shares of the last node
@@ -318,7 +319,7 @@ impl Circuit {
         self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
 
-    fn lookup_const(e: &Env, c: Const) -> bool {
+    fn lookup_const(e: &Env, c: Const) -> BigUint {
         match c {
             Const::Literal(b) => b,
             Const::Var(id) => {
@@ -469,11 +470,12 @@ fn deal_rands() -> Rands {
     if let Err(e) = getrandom(&mut buf) {
         panic!("{e}");
     }
-    let ux = buf[0] % 2 != 0;
-    let uy = (buf[0] >> 1) % 2 != 0;
-    let vx = (buf[0] >> 2) % 2 != 0;
-    let vy = (buf[0] >> 3) % 2 != 0;
-    let wx = (buf[0] >> 4) % 2 != 0;
+    let ux : BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let uy : BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let vx : BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let vy : BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let wx : BigUint = BigUint::from_u8(buf[0]).unwrap();
+
     Rands {
         u: Shares { x: ux, y: uy },
         v: Shares { x: vx, y: vy },
@@ -507,13 +509,13 @@ fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
 
     // first layer
 
-    let xor_xa = Node::xor_unary(xa_id, Const::Literal(true));
+    let xor_xa = Node::xor_unary(xa_id, Const::Literal(BigUint::from_i8(1).unwrap()));
     let xor_xa_id = push_node(&mut g, xor_xa);
 
-    let xor_xb = Node::xor_unary(xb_id, Const::Literal(true));
+    let xor_xb = Node::xor_unary(xb_id, Const::Literal(BigUint::from_i8(1).unwrap()));
     let xor_xb_id = push_node(&mut g, xor_xb);
 
-    let xor_xr = Node::xor_unary(xr_id, Const::Literal(true));
+    let xor_xr = Node::xor_unary(xr_id, Const::Literal(BigUint::from_i8(1).unwrap()));
     let xor_xr_id = push_node(&mut g, xor_xr);
 
     // second layer
@@ -529,13 +531,13 @@ fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
 
     // third layer
 
-    let xor_and_ya = Node::xor_unary(and_ya_id, Const::Literal(true));
+    let xor_and_ya = Node::xor_unary(and_ya_id, Const::Literal(BigUint::from_i8(1).unwrap()));
     let xor_and_ya_id = push_node(&mut g, xor_and_ya);
 
-    let xor_and_yb = Node::xor_unary(and_yb_id, Const::Literal(true));
+    let xor_and_yb = Node::xor_unary(and_yb_id, Const::Literal(BigUint::from_i8(1).unwrap()));
     let xor_and_yb_id = push_node(&mut g, xor_and_yb);
 
-    let xor_and_yr = Node::xor_unary(and_yr_id, Const::Literal(true));
+    let xor_and_yr = Node::xor_unary(and_yr_id, Const::Literal(BigUint::from_i8(1).unwrap()));
     let xor_and_yr_id = push_node(&mut g, xor_and_yr);
 
     // fourth layer
@@ -602,10 +604,10 @@ fn parse_blood_type(s: &str) -> u8 {
     i
 }
 
-fn as_bool_arr(n: u8) -> [bool; 3] {
-    let mut res = [false, false, false];
+fn as_bool_arr(n: u8) -> [BigUint; 3] {
+    let mut res = [BigUint::from_i64(0).unwrap(), BigUint::from_i64(0).unwrap(), BigUint::from_i64(0).unwrap()];
     for i in 0..3 {
-        res[2 - i] = (n >> i) % 2 != 0;
+        res[2 - i] = BigUint::from_u8(((n >> i) % 2 != 0) as u8).unwrap();
     }
     res
 }
