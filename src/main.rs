@@ -1,4 +1,5 @@
 use getrandom::getrandom;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::ops::{BitAnd, BitXor};
@@ -48,10 +49,10 @@ struct Node {
     in_1: Option<NodeId>,
     in_2: Option<NodeId>,
     op: Gate,
-    value: Option<Shares>,
+    value: RefCell<Option<Shares>>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 struct Shares {
     x: bool, // todo: Nat
     y: bool, // todo: Nat
@@ -77,8 +78,8 @@ impl Shares {
         self.x ^ self.y
     }
 
-    fn as_in_node(&self) -> Node {
-        Node::in_(*self)
+    fn as_in_node(self) -> Node {
+        Node::in_(self)
     }
 }
 
@@ -116,7 +117,7 @@ impl Default for Node {
             in_1: None,
             in_2: None,
             op: Gate::IN,
-            value: None,
+            value: RefCell::new(None),
         }
     }
 }
@@ -167,7 +168,7 @@ impl Node {
 
     fn in_(s: Shares) -> Self {
         Node {
-            value: Some(s),
+            value: RefCell::new(Some(s)),
             ..Node::default()
         }
     }
@@ -183,7 +184,7 @@ fn as_nodes(arr: [bool; 3]) -> [Node; 3] {
         panic!("{e}");
     }
 
-    let mut nodes = [Node::default(), Node::default(), Node::default()];
+    let nodes = [Node::default(), Node::default(), Node::default()];
 
     for (i, b) in arr.iter().enumerate() {
         // Make new secret share of b
@@ -197,7 +198,7 @@ fn as_nodes(arr: [bool; 3]) -> [Node; 3] {
 
         let s = Shares { x: r ^ b, y: r };
 
-        nodes[i].value = Some(s);
+        *nodes[i].value.borrow_mut() = Some(s);
     }
     nodes
 }
@@ -207,7 +208,7 @@ struct Circuit {
     nodes: Vec<Node>,
 }
 
-type Env = HashMap<usize, bool>;
+type Env = HashMap<NodeId, bool>;
 
 impl Circuit {
     // Evaluates the circuit and returns the shares of the last node
@@ -215,7 +216,7 @@ impl Circuit {
     // It does so by iterating over all nodes, and propagating values from
     // parents to children with respect to the operation of the current node.
 
-    fn eval(&mut self) -> Shares {
+    fn eval(self) -> Shares {
         // Env is a mapping from node ids to openings of the secret
         // flowing out of that node. Its used to lookup variables
         // referred to by constant gates (in contrast to literals
@@ -224,19 +225,20 @@ impl Circuit {
         let mut env: Env = HashMap::new();
 
         let len = self.nodes.len();
-        for i in 0..len {
-            let node = &self.nodes[i];
-            if let Some(_) = node.value {
+        for id in 0..len {
+            let node = &self.nodes[id];
+            if node.value.borrow().is_some() {
                 continue;
             }
             match node.op {
                 Gate::XORUnary(c) => {
                     if let Some(p1_id) = node.in_1 {
-                        let p1 = &self.nodes[p1_id];
-                        if let Some(p1_val) = p1.value {
-                            let node = &mut self.nodes[i];
+                        let p1 = &self.nodes[p1_id].value.borrow();
+                        if p1.is_some() {
+                            let p1_val = p1.as_ref().unwrap();
+                            let node = &self.nodes[id];
                             let b = Self::lookup_const(&env, c);
-                            node.value = Some(p1_val.xor(b));
+                            *node.value.borrow_mut() = Some(p1_val.xor(b));
                         } else {
                             // In this case a node's parent has no value yet
                             // Since we assume the circuit only has forward
@@ -247,30 +249,18 @@ impl Circuit {
                         panic!("expected parent id on XOR gate")
                     }
                 }
-                Gate::AND => match (node.in_1, node.in_2) {
-                    (Some(p1_id), Some(p2_id)) => {
-                        let p1 = &self.nodes[p1_id];
-                        let p2 = &self.nodes[p2_id];
-                        match (p1.value, p2.value) {
-                            (Some(v1), Some(v2)) => {
-                                let node = &mut self.nodes[i];
-                                node.value = Some(v1 & v2);
-                            }
-                            (_, _) => panic!("no values on ps of AND"),
-                        }
-                    }
-                    (_, _) => panic!("no p_ids on AND"),
-                },
+                Gate::AND => panic!("circuit not normalized"),
                 Gate::XOR => match (node.in_1, node.in_2) {
                     (Some(p1_id), Some(p2_id)) => {
-                        let p1 = &self.nodes[p1_id];
-                        let p2 = &self.nodes[p2_id];
-                        match (p1.value, p2.value) {
-                            (Some(v1), Some(v2)) => {
-                                let node = &mut self.nodes[i];
-                                node.value = Some(v1 ^ v2);
-                            }
-                            (_, _) => panic!("no values on parents of AND"),
+                        let p1 = &self.nodes[p1_id].value.borrow();
+                        let p2 = &self.nodes[p2_id].value.borrow();
+                        if p1.is_some() && p2.is_some() {
+                            let v1 = p1.as_ref().unwrap();
+                            let v2 = p2.as_ref().unwrap();
+                            let node = &self.nodes[id];
+                            *node.value.borrow_mut() = Some(v1.clone() ^ v2.clone());
+                        } else {
+                            panic!("no values on parents of AND")
                         }
                     }
                     (_, _) => panic!("no parent ids on AND gate"),
@@ -279,10 +269,12 @@ impl Circuit {
                 Gate::OPEN => {
                     match node.in_1 {
                         Some(pid) => {
-                            let p = &self.nodes[pid];
-                            if let Some(s) = p.value {
-                                // Update the environment
-                                env.insert(i, s.val());
+                            let p = &self.nodes[pid].value.borrow();
+                            if p.is_some() {
+                                let s = p.as_ref().unwrap();
+                                // Update the environment with the opened
+                                // value of the node
+                                env.insert(id, s.val());
                             } else {
                                 panic!("no value to open");
                             }
@@ -292,9 +284,10 @@ impl Circuit {
                 }
                 Gate::ANDUnary(c) => {
                     if let Some(p1_id) = node.in_1 {
-                        let p1 = &self.nodes[p1_id];
-                        if let Some(p1_val) = p1.value {
-                            let node = &mut self.nodes[i];
+                        let p1 = &self.nodes[p1_id].value.borrow();
+                        if p1.is_some() {
+                            let p1_val = p1.as_ref().unwrap();
+                            let node = &self.nodes[id];
                             let b = match c {
                                 Const::Literal(b) => b,
                                 Const::Var(id) => {
@@ -309,7 +302,7 @@ impl Circuit {
                                     (_, _) => panic!("xor const and"),
                                 },
                             };
-                            node.value = Some(p1_val.and(b));
+                            *node.value.borrow_mut() = Some(p1_val.and(b));
                         } else {
                             // In this case a node's parent has no value yet
                             // Since we assume the circuit only has forward
@@ -322,7 +315,7 @@ impl Circuit {
                 }
             }
         }
-        self.nodes.last().unwrap().value.unwrap()
+        self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
 
     fn lookup_const(e: &Env, c: Const) -> bool {
@@ -625,12 +618,12 @@ fn str_to_nodes(x: &str, y: &str) -> ([Node; 3], [Node; 3]) {
     (in_alice, in_bob)
 }
 
-
-
 // --------------- tests ----------------
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::BorrowMut;
+
     use super::*;
 
     fn single_and_gate(x: Node, y: Node) -> Circuit {
@@ -704,7 +697,7 @@ mod tests {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
-                            let mut g: Circuit = single_and_gate(Node::in_(x), Node::in_(y));
+                            let mut g: Circuit = single_and_gate(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), x.val() & y.val());
@@ -724,10 +717,10 @@ mod tests {
                 for b2 in [true, false] {
                     for b3 in [true, false] {
                         for b4 in [true, false] {
-                            let x = Shares { x: b1, y: b2 };
-                            let y = Shares { x: b3, y: b4 };
+                            let x: Shares = Shares { x: b1, y: b2 };
+                            let y: Shares = Shares { x: b3, y: b4 };
 
-                            let mut g = and_xor_unary_one(Node::in_(x), Node::in_(y));
+                            let mut g = and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), (x.val() & y.val()) ^ true);
@@ -750,7 +743,7 @@ mod tests {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
-                            let mut g = xor_and_xor(Node::in_(x), Node::in_(y));
+                            let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ true);
@@ -773,7 +766,7 @@ mod tests {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
-                            let mut g = xor_and_xor(Node::in_(x), Node::in_(y));
+                            let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ true);
@@ -796,7 +789,7 @@ mod tests {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
-                            let mut g = and_and(Node::in_(x), Node::in_(y));
+                            let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), ((x.val() & y.val()) & y.val()));
