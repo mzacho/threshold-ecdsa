@@ -315,7 +315,7 @@ impl Circuit {
                 }
             }
         }
-        self.nodes.last().unwrap().value.borrow().unwrap()
+        self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
 
     fn lookup_const(e: &Env, c: Const) -> bool {
@@ -622,6 +622,8 @@ fn str_to_nodes(x: &str, y: &str) -> ([Node; 3], [Node; 3]) {
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::BorrowMut;
+
     use super::*;
 
     fn single_and_gate(x: Node, y: Node) -> Circuit {
@@ -695,7 +697,7 @@ mod tests {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
-                            let mut g: Circuit = single_and_gate(Node::in_(x), Node::in_(y));
+                            let mut g: Circuit = single_and_gate(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), x.val() & y.val());
@@ -715,10 +717,10 @@ mod tests {
                 for b2 in [true, false] {
                     for b3 in [true, false] {
                         for b4 in [true, false] {
-                            let x = Shares { x: b1, y: b2 };
-                            let y = Shares { x: b3, y: b4 };
+                            let x: Shares = Shares { x: b1, y: b2 };
+                            let y: Shares = Shares { x: b3, y: b4 };
 
-                            let mut g = and_xor_unary_one(Node::in_(x), Node::in_(y));
+                            let mut g = and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), (x.val() & y.val()) ^ true);
@@ -741,7 +743,7 @@ mod tests {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
-                            let mut g = xor_and_xor(Node::in_(x), Node::in_(y));
+                            let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ true);
@@ -764,7 +766,7 @@ mod tests {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
-                            let mut g = xor_and_xor(Node::in_(x), Node::in_(y));
+                            let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ true);
@@ -787,7 +789,7 @@ mod tests {
                             let x = Shares { x: b1, y: b2 };
                             let y = Shares { x: b3, y: b4 };
 
-                            let mut g = and_and(Node::in_(x), Node::in_(y));
+                            let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.val(), ((x.val() & y.val()) & y.val()));
