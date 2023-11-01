@@ -82,7 +82,7 @@ impl Circuit {
                         *v.borrow_mut() = Some(p1_val.xor(b));
                     }
                 }
-                Gate::AND => {
+                Gate::AND => { // TODO: Should we remove this?
                     if node.in_1.is_none() || node.in_2.is_none() {
                         panic!("no p_ids on AND");
                     }
@@ -175,7 +175,7 @@ impl Circuit {
     // The actual reconstruction of secrets is being
     // handled in the evaluation of the circuit.
 
-    pub fn transform_and_gates(&mut self) -> () {
+    pub fn transform_and_gates(&mut self) -> () { // TODO: Should we do it directly on the circuit instead of breaking it into subProtocols
         let mut i = 0;
         while i < self.nodes.len() {
             let node = &self.nodes[i];
