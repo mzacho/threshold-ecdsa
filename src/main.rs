@@ -35,7 +35,7 @@ enum Gate {
     OPEN,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 enum Const {
     Literal(bool),
     Var(usize),
@@ -230,7 +230,7 @@ impl Circuit {
             if node.value.borrow().is_some() {
                 continue;
             }
-            match node.op {
+            match &node.op {
                 Gate::XORUnary(c) => {
                     if let Some(p1_id) = node.in_1 {
                         let p1 = &self.nodes[p1_id].value.borrow();
@@ -288,20 +288,7 @@ impl Circuit {
                         if p1.is_some() {
                             let p1_val = p1.as_ref().unwrap();
                             let node = &self.nodes[id];
-                            let b = match c {
-                                Const::Literal(b) => b,
-                                Const::Var(id) => {
-                                    if let Some(b) = env.get(&id) {
-                                        *b
-                                    } else {
-                                        panic!("could not look up const var");
-                                    }
-                                }
-                                Const::AND(id1, id2) => match (env.get(&id1), env.get(&id2)) {
-                                    (Some(b1), Some(b2)) => *b1 & *b2,
-                                    (_, _) => panic!("xor const and"),
-                                },
-                            };
+                            let b = Self::lookup_const(&env, c);
                             *node.value.borrow_mut() = Some(p1_val.and(b));
                         } else {
                             // In this case a node's parent has no value yet
@@ -318,18 +305,18 @@ impl Circuit {
         self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
 
-    fn lookup_const(e: &Env, c: Const) -> bool {
+    fn lookup_const(e: &Env, c: &Const) -> bool {
         match c {
-            Const::Literal(b) => b,
+            Const::Literal(b) => b.clone(),
             Const::Var(id) => {
                 if let Some(b) = e.get(&id) {
-                    *b
+                    b.clone()
                 } else {
                     panic!("could not look up const var");
                 }
             }
             Const::AND(id1, id2) => match (e.get(&id1), e.get(&id2)) {
-                (Some(b1), Some(b2)) => *b1 & *b2,
+                (Some(b1), Some(b2)) => b1.clone() & b2.clone(),
                 (_, _) => panic!("could nok look up const vars for and"),
             },
         }
@@ -622,8 +609,6 @@ fn str_to_nodes(x: &str, y: &str) -> ([Node; 3], [Node; 3]) {
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::BorrowMut;
-
     use super::*;
 
     fn single_and_gate(x: Node, y: Node) -> Circuit {
