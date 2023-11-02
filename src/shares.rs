@@ -1,5 +1,6 @@
-use num_bigint::BigUint;
+use num_bigint::{BigUint, RandomBits};
 use num_traits::One;
+use rand::Rng;
 use std::ops::{BitAnd, BitXor};
 
 use crate::node::Node;
@@ -11,6 +12,7 @@ pub struct Shares {
 }
 
 impl Shares {
+    /// Instantiate a new share with the given `x` and `y` values
     pub fn new(x: &BigUint, y: &BigUint) -> Self {
         Shares {
             x: x.clone(),
@@ -18,12 +20,21 @@ impl Shares {
         }
     }
 
-    pub fn xor(&self, c: BigUint) -> Shares {
+    /// Create a share of a constant `c`
+    pub fn create_share(c: &BigUint) -> Self {
+        let mut rng = rand::thread_rng();
+        let x: BigUint = rng.sample(RandomBits::new(256));
+        let y: BigUint = c ^ &x;
+
+        Shares { x, y }
+    }
+
+    pub fn xor(&self, c: &BigUint) -> Shares {
         return Shares::new(&(&self.x ^ c), &self.y);
     }
 
-    pub fn and(&self, c: BigUint) -> Shares {
-        return Shares::new(&(&self.x & &c), &(&self.y & &c));
+    pub fn and(&self, c: &BigUint) -> Shares {
+        return Shares::new(&(&self.x & c), &(&self.y & c));
     }
 
     // Reconstruct the secret from the shares
@@ -36,25 +47,27 @@ impl Shares {
     }
 }
 
-impl BitAnd for Shares {
+impl BitXor<&Shares> for &Shares {
     type Output = Shares;
 
-    fn bitand(self, rhs: Self) -> Self::Output {
-        Shares {
-            x: self.x & rhs.x,
-            y: self.y & rhs.y,
-        }
+    fn bitxor(self, rhs: &Shares) -> Self::Output {
+        Shares::new(&(&self.x ^ &rhs.x), &(&self.y ^ &rhs.y))
     }
 }
 
-impl BitXor for Shares {
+impl BitXor<&BigUint> for &Shares {
     type Output = Shares;
 
-    fn bitxor(self, rhs: Self) -> Self::Output {
-        Shares {
-            x: self.x ^ rhs.x,
-            y: self.y ^ rhs.y,
-        }
+    fn bitxor(self, rhs: &BigUint) -> Self::Output {
+        self.xor(&rhs)
+    }
+}
+
+impl BitAnd<&BigUint> for &Shares {
+    type Output = Shares;
+
+    fn bitand(self, rhs: &BigUint) -> Self::Output {
+        self.and(&rhs)
     }
 }
 
@@ -64,5 +77,51 @@ impl Default for Shares {
             x: One::one(),
             y: One::one(),
         }
+    }
+}
+
+// TODO: Implement Mul and BitAnd for Shares here?
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn test_shares_create_share() {
+        let x = BigUint::from(0b1010u32);
+        let shares = Shares::create_share(&x);
+
+        assert_ne!(shares.x, x);
+        assert_ne!(shares.y, x);
+
+        assert_eq!(shares.reconstruct(), x);
+    }
+
+    #[test]
+    fn test_shares_xor() {
+        let x1 = BigUint::from(0b1010u32);
+        let shares1 = Shares::create_share(&x1);
+
+        let x2 = BigUint::from(0b0101u32);
+        let shares2 = Shares::create_share(&x2);
+
+        let y = BigUint::from(0b1111u32);
+
+        let xor_share_constant = &shares1 ^ &y;
+        assert_eq!(xor_share_constant.reconstruct(), &x1 ^ &y);
+
+        let xor_share = &shares1 ^ &shares2;
+        assert_eq!(xor_share.reconstruct(), &x1 ^ x2);
+    }
+
+    #[test]
+    fn test_shares_and() {
+        let x1 = BigUint::from(0b1010u32);
+        let shares1 = Shares::create_share(&x1);
+
+        let y = BigUint::from(0b1111u32);
+
+        let and_share_constant = &shares1 & &y;
+        assert_eq!(and_share_constant.reconstruct(), &x1 & &y);
     }
 }
