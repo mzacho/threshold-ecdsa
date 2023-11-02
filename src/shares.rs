@@ -11,6 +11,13 @@ pub struct Shares {
 }
 
 impl Shares {
+    pub fn new(x: &BigUint, y: &BigUint) -> Self {
+        Shares {
+            x: x.clone(),
+            y: y.clone(),
+        }
+    }
+
     pub fn xor(&self, c: BigUint) -> Shares {
         Shares {
             x: self.x ^ c,

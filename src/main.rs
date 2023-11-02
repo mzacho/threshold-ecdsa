@@ -14,18 +14,25 @@ mod shares;
 // type Nat = BigUint; // represent natural numbers as BigUint
 
 fn main() {
+    // Inputs
     let (x, y) = read_args(env::args());
     print!("Running BeDOZa on inputs: x={x} y={y}\n");
+
+    // Parse inputs
     let (in_alice, in_bob) = str_to_nodes(&x, &y);
+
+    // Initialize circuit
     let mut g: Circuit = init_circuit(in_alice, in_bob);
     g.transform_and_gates();
+
+    // Evaluate circuit
     let Shares { x, y } = g.eval();
+
     print!("---------------------------------------------------\n");
     print!("Result of evaluation:\n");
-    print!(
-        "Alices share: {x}\nBobs share: {y}\nReconstruction (XOR): {}\n",
-        x ^ y
-    );
+    println!("Alices share: {:?}", x);
+    println!("Bobs share: {:?}", y);
+    println!("Reconstruction (XOR): {:?}", x ^ y);
     print!("---------------------------------------------------\n");
 }
 
@@ -236,12 +243,12 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [One::one(), Zero::zero()] {
-                for b2 in [One::one(), Zero::zero()] {
-                    for b3 in [One::one(), Zero::zero()] {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x = Shares { x: b1, y: b2 };
-                            let y = Shares { x: b3, y: b4 };
+            for b1 in [&One::one(), &Zero::zero()] {
+                for b2 in [&One::one(), &Zero::zero()] {
+                    for b3 in [&One::one(), &Zero::zero()] {
+                        for b4 in [&One::one(), &Zero::zero()] {
+                            let x: Shares = Shares::new(b1, b2);
+                            let y: Shares = Shares::new(b3, b4);
 
                             let mut g: Circuit =
                                 single_and_gate(Node::in_(x.clone()), Node::in_(y.clone()));
@@ -260,12 +267,12 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [One::one(), Zero::zero()] {
-                for b2 in [One::one(), Zero::zero()] {
-                    for b3 in [One::one(), Zero::zero()] {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x: Shares = Shares { x: b1, y: b2 };
-                            let y: Shares = Shares { x: b3, y: b4 };
+            for b1 in [&One::one(), &Zero::zero()] {
+                for b2 in [&One::one(), &Zero::zero()] {
+                    for b3 in [&One::one(), &Zero::zero()] {
+                        for b4 in [&One::one(), &Zero::zero()] {
+                            let x: Shares = Shares::new(b1, b2);
+                            let y: Shares = Shares::new(b3, b4);
 
                             let mut g =
                                 and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
@@ -284,12 +291,12 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [One::one(), Zero::zero()] {
-                for b2 in [One::one(), Zero::zero()] {
-                    for b3 in [One::one(), Zero::zero()] {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x = Shares { x: b1, y: b2 };
-                            let y = Shares { x: b3, y: b4 };
+            for b1 in [&One::one(), &Zero::zero()] {
+                for b2 in [&One::one(), &Zero::zero()] {
+                    for b3 in [&One::one(), &Zero::zero()] {
+                        for b4 in [&One::one(), &Zero::zero()] {
+                            let x: Shares = Shares::new(b1, b2);
+                            let y: Shares = Shares::new(b3, b4);
 
                             let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
@@ -307,12 +314,12 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [One::one(), Zero::zero()] {
-                for b2 in [One::one(), Zero::zero()] {
-                    for b3 in [One::one(), Zero::zero()] {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x = Shares { x: b1, y: b2 };
-                            let y = Shares { x: b3, y: b4 };
+            for b1 in [&One::one(), &Zero::zero()] {
+                for b2 in [&One::one(), &Zero::zero()] {
+                    for b3 in [&One::one(), &Zero::zero()] {
+                        for b4 in [&One::one(), &Zero::zero()] {
+                            let x: Shares = Shares::new(b1, b2);
+                            let y: Shares = Shares::new(b3, b4);
 
                             let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
@@ -330,12 +337,12 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            for b1 in [One::one(), Zero::zero()] {
-                for b2 in [One::one(), Zero::zero()] {
-                    for b3 in [One::one(), Zero::zero()] {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x = Shares { x: b1, y: b2 };
-                            let y = Shares { x: b3, y: b4 };
+            for b1 in [&One::one(), &Zero::zero()] {
+                for b2 in [&One::one(), &Zero::zero()] {
+                    for b3 in [&One::one(), &Zero::zero()] {
+                        for b4 in [&One::one(), &Zero::zero()] {
+                            let x: Shares = Shares::new(b1, b2);
+                            let y: Shares = Shares::new(b3, b4);
 
                             let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
