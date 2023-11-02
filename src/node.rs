@@ -121,7 +121,7 @@ pub fn as_nodes(arr: [BigUint; 3]) -> [Node; 3] {
         // Then assign Alices share to r XOR b
         // and Bobs share to r
 
-        let s = Shares { x: r ^ b, y: r };
+        let s = Shares::new(&(&r ^ b), &r);
 
         *nodes[i].value.borrow_mut() = Some(s);
     }

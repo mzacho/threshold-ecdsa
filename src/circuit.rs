@@ -77,7 +77,7 @@ impl Circuit {
                                 let s = p.as_ref().unwrap();
                                 // Update the environment with the opened
                                 // value of the node
-                                env.insert(id, s.val());
+                                env.insert(id, s.reconstruct());
                             } else {
                                 panic!("no value to open");
                             }
@@ -265,13 +265,16 @@ pub fn deal_rands() -> Rands {
     let vy: BigUint = BigUint::from_u8(buf[0]).unwrap();
     let wx: BigUint = BigUint::from_u8(buf[0]).unwrap();
 
+    let u: Shares = Shares::new(&ux, &uy);
+    let v: Shares = Shares::new(&vx, &vy);
+
     Rands {
-        u: Shares { x: ux, y: uy },
-        v: Shares { x: vx, y: vy },
-        w: Shares {
-            x: wx,
-            y: wx ^ (ux & vx) ^ (ux & vy) ^ (uy & vx) ^ (uy & vy),
-        },
+        u: u,
+        v: v,
+        w: Shares::new(
+            &wx,
+            &(&wx ^ (&ux & &vx) ^ (&ux & &vy) ^ (&uy & &vx) ^ (&uy & &vy)),
+        ),
     }
 }
 

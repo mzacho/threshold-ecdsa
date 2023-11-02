@@ -254,7 +254,7 @@ mod tests {
                                 single_and_gate(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
-                            assert_eq!(res.val(), x.val() & y.val());
+                            assert_eq!(res.reconstruct(), x.reconstruct() & y.reconstruct());
                         }
                     }
                 }
@@ -278,7 +278,7 @@ mod tests {
                                 and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
-                            assert_eq!(res.val(), (x.val() & y.val()) ^ &One::one());
+                            assert_eq!(res.reconstruct(), (x.reconstruct() & y.reconstruct()) ^ &One::one());
                         }
                     }
                 }
@@ -301,7 +301,7 @@ mod tests {
                             let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
-                            assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ &One::one());
+                            assert_eq!(res.reconstruct(), ((x.reconstruct() ^ y.reconstruct()) & x.reconstruct()) ^ &One::one());
                         }
                     }
                 }
@@ -324,7 +324,7 @@ mod tests {
                             let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
-                            assert_eq!(res.val(), ((x.val() ^ y.val()) & x.val()) ^ &One::one());
+                            assert_eq!(res.reconstruct(), ((x.reconstruct() ^ y.reconstruct()) & x.reconstruct()) ^ &One::one());
                         }
                     }
                 }
@@ -347,7 +347,7 @@ mod tests {
                             let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
-                            assert_eq!(res.val(), ((x.val() & y.val()) & y.val()));
+                            assert_eq!(res.reconstruct(), ((x.reconstruct() & y.reconstruct()) & y.reconstruct()));
                         }
                     }
                 }
@@ -360,7 +360,7 @@ mod tests {
         let mut g: Circuit = init_circuit(in_alice, in_bob);
         g.transform_and_gates();
         let res = g.eval();
-        assert_eq!(res.val(), expectation);
+        assert_eq!(res.reconstruct(), expectation);
     }
 
     #[test]
@@ -404,7 +404,7 @@ mod tests {
         for _ in 0..100 {
             // deal_rands is indeterministic, so run it a lot of times ...
             let Rands { u, v, w } = deal_rands();
-            assert_eq!(u.val() & v.val(), w.val());
+            assert_eq!(u.reconstruct() & v.reconstruct(), w.reconstruct());
         }
     }
 }

@@ -19,22 +19,16 @@ impl Shares {
     }
 
     pub fn xor(&self, c: BigUint) -> Shares {
-        Shares {
-            x: self.x ^ c,
-            y: self.y,
-        }
+        return Shares::new(&(&self.x ^ c), &self.y);
     }
 
     pub fn and(&self, c: BigUint) -> Shares {
-        Shares {
-            x: self.x & c,
-            y: self.y & c,
-        }
+        return Shares::new(&(&self.x & &c), &(&self.y & &c));
     }
 
     // Reconstruct the secret from the shares
-    pub fn val(&self) -> BigUint {
-        self.x ^ self.y
+    pub fn reconstruct(&self) -> BigUint {
+        self.x.clone() ^ self.y.clone()
     }
 
     pub fn as_in_node(self) -> Node {
