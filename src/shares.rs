@@ -13,10 +13,10 @@ pub struct Shares {
 
 impl Shares {
     /// Instantiate a new share with the given `x` and `y` values
-    pub fn new(x: &BigUint, y: &BigUint) -> Self {
+    pub fn new(x: BigUint, y: BigUint) -> Self {
         Shares {
-            x: x.clone(),
-            y: y.clone(),
+            x: x,
+            y: y,
         }
     }
 
@@ -31,11 +31,11 @@ impl Shares {
     }
 
     pub fn xor(&self, c: &BigUint) -> Shares {
-        return Shares::new(&(&self.x ^ c), &self.y);
+        return Shares::new(self.x.clone() ^ c, self.y.clone());
     }
 
     pub fn and(&self, c: &BigUint) -> Shares {
-        return Shares::new(&(&self.x & c), &(&self.y & c));
+        return Shares::new(self.x.clone() & c, self.y.clone() & c);
     }
 
     // Reconstruct the secret from the shares
@@ -52,7 +52,7 @@ impl BitXor<&Shares> for &Shares {
     type Output = Shares;
 
     fn bitxor(self, rhs: &Shares) -> Self::Output {
-        Shares::new(&(&self.x ^ &rhs.x), &(&self.y ^ &rhs.y))
+        Shares::new(self.x.clone() ^ &rhs.x, self.y.clone() ^ &rhs.y)
     }
 }
 

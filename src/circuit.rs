@@ -265,15 +265,15 @@ pub fn deal_rands() -> Rands {
     let vy: BigUint = BigUint::from_u8(buf[0]).unwrap();
     let wx: BigUint = BigUint::from_u8(buf[0]).unwrap();
 
-    let u: Shares = Shares::new(&ux, &uy);
-    let v: Shares = Shares::new(&vx, &vy);
+    let u: Shares = Shares::new(ux.clone(), uy.clone());
+    let v: Shares = Shares::new(vx.clone(), vy.clone());
 
     Rands {
         u: u,
         v: v,
         w: Shares::new(
-            &wx,
-            &(&wx ^ (&ux & &vx) ^ (&ux & &vy) ^ (&uy & &vx) ^ (&uy & &vy)),
+            wx.clone(),
+            wx ^ (ux.clone() & vx.clone()) ^ (ux & vy.clone()) ^ (uy.clone() & vx) ^ (uy & vy),
         ),
     }
 }
