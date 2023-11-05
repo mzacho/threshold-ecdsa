@@ -10,3 +10,4 @@ getrandom = { version = "0.2" }
 num-bigint = { version = "0.4", features = ["rand"] }
 num-integer = "*"
 num-traits = "*"
+rand = "0.8.5"

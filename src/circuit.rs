@@ -41,7 +41,7 @@ impl Circuit {
                             let p1_val = p1.as_ref().unwrap();
                             let node = &self.nodes[id];
                             let b = Self::lookup_const(&env, c);
-                            *node.value.borrow_mut() = Some(p1_val.xor(b));
+                            *node.value.borrow_mut() = Some(p1_val ^ &b);
                         } else {
                             // In this case a node's parent has no value yet
                             // Since we assume the circuit only has forward
@@ -61,7 +61,7 @@ impl Circuit {
                             let v1 = p1.as_ref().unwrap();
                             let v2 = p2.as_ref().unwrap();
                             let node = &self.nodes[id];
-                            *node.value.borrow_mut() = Some(v1.clone() ^ v2.clone());
+                            *node.value.borrow_mut() = Some(v1 ^ v2);
                         } else {
                             panic!("no values on parents of AND")
                         }
@@ -92,7 +92,7 @@ impl Circuit {
                             let p1_val = p1.as_ref().unwrap();
                             let node = &self.nodes[id];
                             let b = Self::lookup_const(&env, c);
-                            *node.value.borrow_mut() = Some(p1_val.and(b));
+                            *node.value.borrow_mut() = Some(p1_val & &b);
                         } else {
                             // In this case a node's parent has no value yet
                             // Since we assume the circuit only has forward
@@ -265,15 +265,15 @@ pub fn deal_rands() -> Rands {
     let vy: BigUint = BigUint::from_u8(buf[0]).unwrap();
     let wx: BigUint = BigUint::from_u8(buf[0]).unwrap();
 
-    let u: Shares = Shares::new(&ux, &uy);
-    let v: Shares = Shares::new(&vx, &vy);
+    let u: Shares = Shares::new(ux.clone(), uy.clone());
+    let v: Shares = Shares::new(vx.clone(), vy.clone());
 
     Rands {
         u: u,
         v: v,
         w: Shares::new(
-            &wx,
-            &(&wx ^ (&ux & &vx) ^ (&ux & &vy) ^ (&uy & &vx) ^ (&uy & &vy)),
+            wx.clone(),
+            wx ^ (ux.clone() & vx.clone()) ^ (ux & vy.clone()) ^ (uy.clone() & vx) ^ (uy & vy),
         ),
     }
 }

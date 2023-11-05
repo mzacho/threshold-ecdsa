@@ -112,7 +112,7 @@ pub fn as_nodes(arr: [BigUint; 3]) -> [Node; 3] {
         //
         // First sample a random bit
 
-        let r = if (buf[0] >> i) % 2 != 0 {
+        let r: BigUint = if (buf[0] >> i) % 2 != 0 {
             One::one()
         } else {
             Zero::zero()
@@ -121,7 +121,7 @@ pub fn as_nodes(arr: [BigUint; 3]) -> [Node; 3] {
         // Then assign Alices share to r XOR b
         // and Bobs share to r
 
-        let s = Shares::new(&(&r ^ b), &r);
+        let s = Shares::new(r.clone() ^ b, r);
 
         *nodes[i].value.borrow_mut() = Some(s);
     }
