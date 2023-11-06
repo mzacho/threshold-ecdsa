@@ -1,9 +1,17 @@
+use core::ops::{Add, Mul};
+use lazy_static::lazy_static;
 use num_bigint::BigUint;
+use num_integer::Integer;
 use num_traits::One;
-use rand::Rng;
-use std::ops::{BitAnd, BitXor};
 
 use crate::node::Node;
+
+// BigUint cannot be declared as a const due to non-const fun-call,
+// the crate lazy_static provides a way to get the same behaviour
+// by allocating it at runtime instead.
+lazy_static! {
+    pub static ref M: BigUint = BigUint::from(153_u32);
+}
 
 #[derive(Debug, Clone)]
 pub struct Shares {
@@ -17,57 +25,48 @@ impl Shares {
         Shares { x, y }
     }
 
-    /// Create a share of a constant `c`
-    pub fn create_share(c: &BigUint) -> Self {
-        let mut rng = rand::thread_rng();
-
-        let x: BigUint = BigUint::from(rng.gen_bool(0.5));
-        let y: BigUint = c ^ &x;
-
-        Shares { x, y }
+    /// Reconstruct the secret from the shares
+    pub fn open(self) -> BigUint {
+        (self.x + self.y).mod_floor(&M)
     }
 
-    pub fn xor(&self, c: &BigUint) -> Shares {
-        return Shares::new(self.x.clone() ^ c, self.y.clone());
-    }
-
-    pub fn and(&self, c: &BigUint) -> Shares {
-        return Shares::new(self.x.clone() & c, self.y.clone() & c);
-    }
-
-    // Reconstruct the secret from the shares
-    pub fn reconstruct(&self) -> BigUint {
-        self.x.clone() ^ self.y.clone()
-    }
-
+    /// Transform Shares to input Node
     pub fn as_in_node(self) -> Node {
         Node::in_(self)
     }
 }
 
-impl BitXor<&Shares> for &Shares {
-    type Output = Shares;
+impl Add for Shares {
+    type Output = Self;
 
-    fn bitxor(self, rhs: &Shares) -> Self::Output {
-        Shares::new(self.x.clone() ^ &rhs.x, self.y.clone() ^ &rhs.y)
+    fn add(self, rhs: Self) -> Self::Output {
+        Shares::new(self.x + rhs.x, self.y + rhs.y)
     }
 }
 
-impl BitXor<&BigUint> for &Shares {
-    type Output = Shares;
+impl Add<BigUint> for Shares {
+    type Output = Self;
 
-    fn bitxor(self, rhs: &BigUint) -> Self::Output {
-        self.xor(&rhs)
+    fn add(self, rhs: BigUint) -> Self::Output {
+        Shares::new(self.x + rhs, self.y)
     }
 }
 
-impl BitAnd<&BigUint> for &Shares {
-    type Output = Shares;
+impl Mul<BigUint> for Shares {
+    type Output = Self;
 
-    fn bitand(self, rhs: &BigUint) -> Self::Output {
-        self.and(&rhs)
+    fn mul(self, rhs: BigUint) -> Self::Output {
+        Shares::new(self.x * &rhs, self.y * rhs)
     }
 }
+
+// impl BitAnd<&BigUint> for &Shares {
+//     type Output = Shares;
+
+//     fn bitand(self, rhs: &BigUint) -> Self::Output {
+//         self.mult(rhs)
+//     }
+// }
 
 impl Default for Shares {
     fn default() -> Self {
@@ -78,48 +77,62 @@ impl Default for Shares {
     }
 }
 
-// TODO: Implement Mul and BitAnd for Shares here?
-
 #[cfg(test)]
 mod test {
-    use num_traits::Zero;
-
     use super::*;
+    use num_bigint::RandBigInt;
+
+    /// Create a share of a constant `c`
+    /// Precondition: 0 <= c < M
+    pub fn create_share(c: &BigUint) -> Shares {
+        assert!(c < &M);
+        let mut rng = rand::thread_rng();
+
+        // Pick random from Zm
+        let x: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
+        // Compute (c - x) mod m, avoiding underflow if c < x
+        let y: BigUint = if c < &x {
+            &M.clone() + c - x.clone()
+        } else {
+            c - x.clone()
+        };
+
+        Shares { x, y }
+    }
 
     #[test]
     fn test_shares_create_share() {
         let x = One::one();
-        let shares = Shares::create_share(&x);
+        let shares = create_share(&x);
 
-        assert_eq!(shares.reconstruct(), x);
+        assert_eq!(shares.open(), x);
     }
 
     #[test]
-    fn test_shares_xor() {
-        let one = One::one();
-        let shares1 = Shares::create_share(&one);
+    fn test_shares_add() {
+        let x = BigUint::from(42_u32);
+        let s1 = create_share(&x);
 
-        let zero = Zero::zero();
-        let shares2 = Shares::create_share(&zero);
+        let y = BigUint::from(120_u32);
+        let s2 = create_share(&y);
 
-        let xor_share_constant_1 = &shares1 ^ &one;
-        assert_eq!(xor_share_constant_1.reconstruct(), &one ^ &one);
-
-        let xor_share_constant_0 = &shares1 ^ &zero;
-        assert_eq!(xor_share_constant_0.reconstruct(), &one ^ &zero);
-
-        let xor_share = &shares1 ^ &shares2;
-        assert_eq!(xor_share.reconstruct(), &one ^ zero);
+        let s3 = s1.clone() + x.clone();
+        assert_eq!(s3.open(), (x.clone() + x.clone()).mod_floor(&M));
+        let s4 = s1.clone() + y.clone();
+        assert_eq!(s4.open(), (x.clone() + y.clone()).mod_floor(&M));
+        let s5 = s1 + s2;
+        assert_eq!(s5.open(), (x + y).mod_floor(&M));
     }
 
     #[test]
-    fn test_shares_and() {
-        let x1 = BigUint::from(0b1010u32);
-        let shares1 = Shares::create_share(&x1);
+    fn test_shares_mul() {
+        let x1 = BigUint::from(0b1010u32).mod_floor(&M);
+        let shares1 = create_share(&x1);
+        assert_eq!(shares1.clone().open(), (x1.clone()).mod_floor(&M));
 
-        let y = BigUint::from(0b1111u32);
+        let y = BigUint::from(0b1111u32).mod_floor(&M);
 
-        let and_share_constant = &shares1 & &y;
-        assert_eq!(and_share_constant.reconstruct(), &x1 & &y);
+        let mul_share_constant = shares1 * y.clone();
+        assert_eq!(mul_share_constant.open(), (x1 * y).mod_floor(&M));
     }
 }

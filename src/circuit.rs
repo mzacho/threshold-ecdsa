@@ -1,10 +1,9 @@
-use getrandom::getrandom;
-use num_bigint::BigUint;
-use num_traits::FromPrimitive;
+use num_bigint::{BigUint, RandBigInt};
+use num_integer::Integer;
 use std::collections::HashMap;
 
 use crate::node::{Const, Gate, Node, NodeId};
-use crate::shares::Shares;
+use crate::shares::{Shares, M};
 
 #[derive(Debug)]
 pub struct Circuit {
@@ -34,50 +33,50 @@ impl Circuit {
                 continue;
             }
             match &node.op {
-                Gate::XORUnary(c) => {
+                Gate::AddUnary(c) => {
                     if let Some(p1_id) = node.in_1 {
                         let p1 = &self.nodes[p1_id].value.borrow();
                         if p1.is_some() {
-                            let p1_val = p1.as_ref().unwrap();
+                            let p1_val = p1.as_ref().unwrap().clone();
                             let node = &self.nodes[id];
                             let b = Self::lookup_const(&env, c);
-                            *node.value.borrow_mut() = Some(p1_val ^ &b);
+                            *node.value.borrow_mut() = Some(p1_val + b);
                         } else {
                             // In this case a node's parent has no value yet
                             // Since we assume the circuit only has forward
                             // gates, then this shouldn't be possible
-                            panic!("expected value on XOR gate parent")
+                            panic!("expected value on AddUnary gate parent")
                         }
                     } else {
-                        panic!("expected parent id on XOR gate")
+                        panic!("expected parent id on AddUnary gate")
                     }
                 }
-                Gate::AND => panic!("circuit not normalized"),
-                Gate::XOR => match (node.in_1, node.in_2) {
+                Gate::Mul => panic!("circuit not normalized"),
+                Gate::Add => match (node.in_1, node.in_2) {
                     (Some(p1_id), Some(p2_id)) => {
                         let p1 = &self.nodes[p1_id].value.borrow();
                         let p2 = &self.nodes[p2_id].value.borrow();
                         if p1.is_some() && p2.is_some() {
-                            let v1 = p1.as_ref().unwrap();
-                            let v2 = p2.as_ref().unwrap();
+                            let v1 = p1.as_ref().unwrap().clone();
+                            let v2 = p2.as_ref().unwrap().clone();
                             let node = &self.nodes[id];
-                            *node.value.borrow_mut() = Some(v1 ^ v2);
+                            *node.value.borrow_mut() = Some(v1 + v2);
                         } else {
                             panic!("no values on parents of AND")
                         }
                     }
                     (_, _) => panic!("no parent ids on AND gate"),
                 },
-                Gate::IN => continue,
-                Gate::OPEN => {
+                Gate::In => continue,
+                Gate::Open => {
                     match node.in_1 {
                         Some(pid) => {
                             let p = &self.nodes[pid].value.borrow();
                             if p.is_some() {
-                                let s = p.as_ref().unwrap();
+                                let s = p.as_ref().unwrap().clone();
                                 // Update the environment with the opened
                                 // value of the node
-                                env.insert(id, s.reconstruct());
+                                env.insert(id, s.open());
                             } else {
                                 panic!("no value to open");
                             }
@@ -85,19 +84,19 @@ impl Circuit {
                         None => panic!("no parent on open gate"),
                     }
                 }
-                Gate::ANDUnary(c) => {
+                Gate::MulUnary(c) => {
                     if let Some(p1_id) = node.in_1 {
                         let p1 = &self.nodes[p1_id].value.borrow();
                         if p1.is_some() {
-                            let p1_val = p1.as_ref().unwrap();
+                            let p1_val = p1.as_ref().unwrap().clone();
                             let node = &self.nodes[id];
                             let b = Self::lookup_const(&env, c);
-                            *node.value.borrow_mut() = Some(p1_val & &b);
+                            *node.value.borrow_mut() = Some(p1_val * b);
                         } else {
                             // In this case a node's parent has no value yet
                             // Since we assume the circuit only has forward
                             // gates, then this shouldn't be possible
-                            panic!("expected value on XOR gate parent")
+                            panic!("expected value on MulUnary gate parent")
                         }
                     } else {
                         panic!("expected parent id on XOR gate")
@@ -119,7 +118,10 @@ impl Circuit {
                 }
             }
             Const::AND(id1, id2) => match (e.get(&id1), e.get(&id2)) {
-                (Some(b1), Some(b2)) => b1.clone() & b2.clone(),
+                (Some(b1), Some(b2)) => {
+                    // Compute -b1*b2 mod m, i.e. m - ((b1 * b2) mod m)
+                    &M.clone() - (b1.clone() * b2.clone()).mod_floor(&M)
+            },
                 (_, _) => panic!("could nok look up const vars for and"),
             },
         }
@@ -146,7 +148,7 @@ impl Circuit {
         while i < self.nodes.len() {
             let node = &self.nodes[i];
             match node.op {
-                Gate::AND => {
+                Gate::Mul => {
                     let Rands { u, v, w } = deal_rands();
                     let pid1 = node.in_1.unwrap();
                     let pid2 = node.in_2.unwrap();
@@ -158,17 +160,17 @@ impl Circuit {
                     self.nodes.insert(i, u.as_in_node());
                     let uid = i;
 
-                    // Insert XOR gate with inputs pid1 and u
+                    // Insert ADD gate with inputs pid1 and u
                     let did = i + 1;
-                    self.insert_node(did, Node::xor(pid1, uid));
+                    self.insert_node(did, Node::add(pid1, uid));
 
                     // Insert input gate for v
                     let vid = i + 2;
                     self.insert_node(vid, v.as_in_node());
 
-                    // Insert XOR gate with inputs pid2 and v
+                    // Insert ADD gate with inputs pid2 and v
                     let eid = i + 3;
-                    self.insert_node(eid, Node::xor(pid2, vid));
+                    self.insert_node(eid, Node::add(pid2, vid));
 
                     // Insert OPEN gates for d and e
                     let odid = i + 4;
@@ -177,36 +179,36 @@ impl Circuit {
 
                     self.insert_node(oeid, Node::open(eid));
 
-                    // Insert unary AND gates for [x] and e
+                    // Insert unary MUL gates for [x] and e
                     let and_xe_id = i + 6;
                     let c = Const::Var(oeid);
-                    self.insert_node(and_xe_id, Node::and_unary(pid1, c));
+                    self.insert_node(and_xe_id, Node::mul_unary(pid1, c));
 
-                    // Insert unary XOR gates for [y] and d
+                    // Insert unary MUL gates for [y] and d
                     let and_yd_id = i + 7;
                     let c = Const::Var(odid);
-                    self.insert_node(and_yd_id, Node::and_unary(pid2, c));
+                    self.insert_node(and_yd_id, Node::mul_unary(pid2, c));
 
                     // Insert input gate for w
                     let wid = i + 8;
                     self.insert_node(wid, w.as_in_node());
 
-                    // Insert XOR gate with inputs w and xor_xe
+                    // Insert ADD gate with inputs w and xor_xe
                     let xor_wxe_id = i + 9;
-                    self.insert_node(xor_wxe_id, Node::xor(wid, and_xe_id));
+                    self.insert_node(xor_wxe_id, Node::add(wid, and_xe_id));
 
-                    // Insert XOR gate with inputs and_yd and e*d
+                    // Insert ADD gate with inputs and_yd and -e*d
                     let xor_and_yd_ed_id = i + 10;
                     self.insert_node(
                         xor_and_yd_ed_id,
-                        Node::xor_unary(and_yd_id, Const::AND(oeid, odid)),
+                        Node::add_unary(and_yd_id, Const::AND(oeid, odid)),
                     );
 
                     // Insert XOR gate with inputs xor_wxe and xor_and_yd_ed
                     let xor_xor_wxe_xor_and_yd_ed_id = i + 11;
                     self.insert_node(
                         xor_xor_wxe_xor_and_yd_ed_id,
-                        Node::xor(xor_wxe_id, xor_and_yd_ed_id),
+                        Node::add(xor_wxe_id, xor_and_yd_ed_id),
                     );
                     i += 11;
                 }
@@ -216,15 +218,15 @@ impl Circuit {
         }
     }
 
+    /// Insert `Node` in `self.nodes` and increment parent pointers of all
+    /// nodes whose parent(s) have an `id` > `index` (similar to how one
+    /// would insert an element at the front of a linked list).
+    ///
+    /// Since we only have forward edges in the circuit, then nodes
+    /// can only point to previous element in the vector. We can
+    /// therefore skip elements [0; index].
     pub fn insert_node(&mut self, index: usize, n: Node) -> () {
         self.nodes.insert(index, n);
-
-        // Increment parent pointers, if they point to an element
-        // after index.
-        //
-        // Since we only have forward edges in the circuit, then nodes
-        // can only point to previous element in the vector. We can
-        // therefore skip elements [0; index].
 
         let len = self.nodes.len();
         for i in index + 1..len {
@@ -242,40 +244,48 @@ impl Circuit {
     }
 }
 
-// The random shares distributed by the dealer to alice and bob.
-// Invariant:
-//   u.x & v.x = w.x
-//   u.y & v.y = w.y
-
+/// The random shares distributed by the dealer to alice and bob.
+/// Invariant:
+///   (u.open() * v.open()).mod_floor(&M) = w.open()
 pub struct Rands {
     pub u: Shares,
     pub v: Shares,
     pub w: Shares,
 }
 
+/// Constructs new secret shares of u, v, w such that u * v = w.
+///
+/// Is does so by choosing random values in Zm for ux, uy, vx, vy and wx,
+/// and computes wy as (((ux + uy) * (vx + vy)) mod m - wx) mod m
 pub fn deal_rands() -> Rands {
-    // Sample random bits
-    let mut buf = [0];
-    if let Err(e) = getrandom(&mut buf) {
-        panic!("{e}");
-    }
-    let ux: BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let uy: BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let vx: BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let vy: BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let wx: BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let mut rng = rand::thread_rng();
+
+    // Pick random elements from from Zm
+    let ux: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let uy: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let vx: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let vy: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let wx: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
 
     let u: Shares = Shares::new(ux.clone(), uy.clone());
     let v: Shares = Shares::new(vx.clone(), vy.clone());
 
-    Rands {
-        u,
-        v,
-        w: Shares::new(
-            wx.clone(),
-            wx ^ (ux.clone() & vx.clone()) ^ (ux & vy.clone()) ^ (uy.clone() & vx) ^ (uy & vy),
-        ),
-    }
+    // Compute u * v mod m
+    let k1 = ux.clone() * vx.clone();
+    let k2 = ux * vy.clone();
+    let k3 = uy.clone() * vx;
+    let k4 = uy * vy;
+    let uv = (k1 + k2 + k3 + k4).mod_floor(&M);
+
+    // Compute (u * v) mod m - wx, avoiding underflow if uv < wx
+    let wy = if uv < wx.clone() {
+        &M.clone() + uv - wx.clone()
+    } else {
+        uv - wx.clone()
+    };
+
+    let w = Shares::new(wx, wy);
+    Rands { u, v, w }
 }
 
 pub fn push_node(c: &mut Circuit, n: Node) -> NodeId {

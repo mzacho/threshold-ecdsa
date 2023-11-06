@@ -7,12 +7,12 @@ use crate::shares::Shares;
 
 #[derive(Debug, Clone)]
 pub enum Gate {
-    IN,
-    XORUnary(Const),
-    ANDUnary(Const),
-    AND,
-    XOR,
-    OPEN,
+    In,
+    AddUnary(Const),
+    MulUnary(Const),
+    Mul,
+    Add,
+    Open,
 }
 
 #[derive(Debug, Clone)]
@@ -37,44 +37,44 @@ impl Default for Node {
         Node {
             in_1: None,
             in_2: None,
-            op: Gate::IN,
+            op: Gate::In,
             value: RefCell::new(None),
         }
     }
 }
 
 impl Node {
-    pub fn and(pid1: usize, pid2: usize) -> Self {
+    pub fn mul(pid1: usize, pid2: usize) -> Self {
         Node {
             in_1: Some(pid1),
             in_2: Some(pid2),
-            op: Gate::AND,
+            op: Gate::Mul,
             ..Default::default()
         }
     }
 
-    pub fn xor(pid1: usize, pid2: usize) -> Self {
+    pub fn add(pid1: usize, pid2: usize) -> Self {
         Node {
             in_1: Some(pid1),
             in_2: Some(pid2),
-            op: Gate::XOR,
+            op: Gate::Add,
             ..Default::default()
         }
     }
 
-    pub fn xor_unary(pid1: usize, c: Const) -> Self {
+    pub fn add_unary(pid1: usize, c: Const) -> Self {
         Node {
             in_1: Some(pid1),
             in_2: None,
-            op: Gate::XORUnary(c),
+            op: Gate::AddUnary(c),
             ..Default::default()
         }
     }
 
-    pub fn and_unary(pid: usize, c: Const) -> Self {
+    pub fn mul_unary(pid: usize, c: Const) -> Self {
         Node {
             in_1: Some(pid),
-            op: Gate::ANDUnary(c),
+            op: Gate::MulUnary(c),
             ..Default::default()
         }
     }
@@ -82,7 +82,7 @@ impl Node {
     pub fn open(pid: usize) -> Self {
         Node {
             in_1: Some(pid),
-            op: Gate::OPEN,
+            op: Gate::Open,
             ..Default::default()
         }
     }
