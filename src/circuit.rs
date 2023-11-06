@@ -5,24 +5,29 @@ use std::collections::HashMap;
 use crate::node::{Const, Gate, Node, NodeId};
 use crate::shares::{Shares, M};
 
+/// `Circuit` represents the circuit used in the BeDOZa protocol for
+/// passively secure two-party computation.
+///
+/// A circuit consists of a vector of Nodes, i.e. Add, Mul, Open etc.,
+/// whose IDs are implicit from their index into the Vec.
 #[derive(Debug)]
 pub struct Circuit {
     pub nodes: Vec<Node>,
 }
 
+/// Env is a mapping from node ids to openings of the secret
+/// flowing out of that node. Its used to lookup variables
+/// referred to by constant gates (in contrast to literals
+/// hard-coded into the constant gates).
 pub type Env = HashMap<NodeId, BigUint>;
 
 impl Circuit {
-    // Evaluates the circuit and returns the shares of the last node
-    //
-    // It does so by iterating over all nodes, and propagating values from
-    // parents to children with respect to the operation of the current node.
 
+    /// Evaluates the circuit and returns the shares of the last node
+    ///
+    /// It does so by iterating over all nodes, and propagating values from
+    /// parents to children with respect to the operation of the current node.
     pub fn eval(self) -> Shares {
-        // Env is a mapping from node ids to openings of the secret
-        // flowing out of that node. Its used to lookup variables
-        // referred to by constant gates (in contrast to literals
-        // hard-coded into the constant gates).
 
         let mut env: Env = HashMap::new();
 
@@ -107,6 +112,22 @@ impl Circuit {
         self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
 
+    /// Returns the constant represented by `c`, by possibly performing
+    /// a lookup into the environment `e`.
+    ///
+    /// Constants are either literal, variables or the product of two
+    /// constants.
+    ///
+    /// If `c` is a literal, its literal value is directly returned.
+    ///
+    /// If `c` is a variable it contains the id of a node, whose value
+    /// should have been opened and inserted into the environment during
+    /// evaluation of the circuit. Its value is returned.
+    ///
+    /// If `c` is the product of two constants, it contains the ids of
+    /// two nodes, whose values should been opened and inserted into the
+    /// environment during evaluation of the circuit. Their product is
+    /// returned.
     pub fn lookup_const(e: &Env, c: &Const) -> BigUint {
         match c {
             Const::Literal(b) => b.clone(),
@@ -127,22 +148,21 @@ impl Circuit {
         }
     }
 
-    // Transforms all AND gates in a circuit. Any gates in the
-    // circuit such as
-    //
-    // [x] AND [y]
-    //
-    // are removed and replaced by the gates correponding to
-    // the protocol for AND of Two Wires from the lecture notes.
-    //
-    // The protocol makes use a dealer, whose output is added
-    // as inputs gates in the circuit.
-    //
-    // OPEN gates are trivial, in that they only refer to the
-    // id of the gate containing the value being opened.
-    // The actual reconstruction of secrets is being
-    // handled in the evaluation of the circuit.
-
+    /// Transforms all MUL gates in a circuit. Any gates in the
+    /// circuit such as
+    ///
+    /// [x] MUL [y]
+    ///
+    /// are removed and replaced by the gates correponding to
+    /// the protocol for MUL of Two Wires from the lecture notes.
+    ///
+    /// The protocol makes use a dealer, whose output is added
+    /// as inputs gates in the circuit.
+    ///
+    /// OPEN gates are trivial, in that they only refer to the
+    /// id of the gate containing the value being opened.
+    /// The actual reconstruction of secrets is being
+    /// handled in the evaluation of the circuit.
     pub fn transform_and_gates(&mut self) -> () {
         let mut i = 0;
         while i < self.nodes.len() {

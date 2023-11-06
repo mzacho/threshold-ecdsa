@@ -24,6 +24,18 @@ pub enum Const {
 
 pub type NodeId = usize;
 
+/// `Node` represents a node in the BeDOZa circuit.
+///
+/// Its function is determined by the value of the `op` operation.
+/// It contains a `value`, which can be `None` or `Some` of `Shares`.
+/// During evaluation.
+///
+/// Input nodes whose `op` is `In` are created with a `value` of `Some`.
+/// `Mul`, `Add`, `AddUnary(Const)` and `MulUnary(Const)` are created with
+/// a `value` of `None`, which changes to `Some` during evaluation.
+/// `Open` nodes always have a `value` of `None`, even after evaluation.
+/// Their value is inserted into the environment of the `Circuit` during
+/// evaluation.
 #[derive(Debug, Clone)]
 pub struct Node {
     pub in_1: Option<NodeId>,
@@ -32,6 +44,7 @@ pub struct Node {
     pub value: RefCell<Option<Shares>>,
 }
 
+/// Default nodes are inputs
 impl Default for Node {
     fn default() -> Self {
         Node {
@@ -95,9 +108,9 @@ impl Node {
     }
 }
 
-// Converts an array of boolean values, representing the
-// input of Alice or Bob, into input nodes, to be used in
-// the boolean circuit.
+/// Converts an array of boolean values, representing the
+/// input of Alice or Bob, into input nodes, to be used in
+/// the boolean circuit.
 pub fn as_nodes(arr: [BigUint; 3]) -> [Node; 3] {
     // Sample random bits
     let mut buf = [0];
