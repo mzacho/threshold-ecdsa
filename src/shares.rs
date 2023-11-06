@@ -14,10 +14,7 @@ pub struct Shares {
 impl Shares {
     /// Instantiate a new share with the given `x` and `y` values
     pub fn new(x: BigUint, y: BigUint) -> Self {
-        Shares {
-            x: x,
-            y: y,
-        }
+        Shares { x, y }
     }
 
     /// Create a share of a constant `c`

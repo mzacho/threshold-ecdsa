@@ -243,22 +243,33 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()].into_iter().for_each(|b1: BigUint| {
-                [One::one(), Zero::zero()].into_iter().for_each(|b2: BigUint| {
-                    [One::one(), Zero::zero()].into_iter().for_each(|b3: BigUint| {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x: Shares = Shares::new(b1.clone(), b2.clone());
-                            let y: Shares = Shares::new(b3.clone(), b4);
+            [One::one(), Zero::zero()]
+                .into_iter()
+                .for_each(|b1: BigUint| {
+                    [One::one(), Zero::zero()]
+                        .into_iter()
+                        .for_each(|b2: BigUint| {
+                            [One::one(), Zero::zero()]
+                                .into_iter()
+                                .for_each(|b3: BigUint| {
+                                    for b4 in [One::one(), Zero::zero()] {
+                                        let x: Shares = Shares::new(b1.clone(), b2.clone());
+                                        let y: Shares = Shares::new(b3.clone(), b4);
 
-                            let mut g: Circuit =
-                                single_and_gate(Node::in_(x.clone()), Node::in_(y.clone()));
-                            g.transform_and_gates();
-                            let res = g.eval();
-                            assert_eq!(res.reconstruct(), x.reconstruct() & y.reconstruct());
-                        }
-                    });
+                                        let mut g: Circuit = single_and_gate(
+                                            Node::in_(x.clone()),
+                                            Node::in_(y.clone()),
+                                        );
+                                        g.transform_and_gates();
+                                        let res = g.eval();
+                                        assert_eq!(
+                                            res.reconstruct(),
+                                            x.reconstruct() & y.reconstruct()
+                                        );
+                                    }
+                                });
+                        });
                 });
-            });
         }
     }
 
@@ -267,22 +278,33 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()].into_iter().for_each(|b1: BigUint| {
-                [One::one(), Zero::zero()].into_iter().for_each(|b2: BigUint| {
-                    [One::one(), Zero::zero()].into_iter().for_each(|b3: BigUint| {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x: Shares = Shares::new(b1.clone(), b2.clone());
-                            let y: Shares = Shares::new(b3.clone(), b4);
+            [One::one(), Zero::zero()]
+                .into_iter()
+                .for_each(|b1: BigUint| {
+                    [One::one(), Zero::zero()]
+                        .into_iter()
+                        .for_each(|b2: BigUint| {
+                            [One::one(), Zero::zero()]
+                                .into_iter()
+                                .for_each(|b3: BigUint| {
+                                    for b4 in [One::one(), Zero::zero()] {
+                                        let x: Shares = Shares::new(b1.clone(), b2.clone());
+                                        let y: Shares = Shares::new(b3.clone(), b4);
 
-                            let mut g =
-                                and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
-                            g.transform_and_gates();
-                            let res = g.eval();
-                            assert_eq!(res.reconstruct(), (x.reconstruct() & y.reconstruct()) ^ &One::one());
-                        }
-                    });
+                                        let mut g = and_xor_unary_one(
+                                            Node::in_(x.clone()),
+                                            Node::in_(y.clone()),
+                                        );
+                                        g.transform_and_gates();
+                                        let res = g.eval();
+                                        assert_eq!(
+                                            res.reconstruct(),
+                                            (x.reconstruct() & y.reconstruct()) ^ &One::one()
+                                        );
+                                    }
+                                });
+                        });
                 });
-            });
         }
     }
 
@@ -291,21 +313,32 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()].into_iter().for_each(|b1: BigUint| {
-                [One::one(), Zero::zero()].into_iter().for_each(|b2: BigUint| {
-                    [One::one(), Zero::zero()].into_iter().for_each(|b3: BigUint| {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x: Shares = Shares::new(b1.clone(), b2.clone());
-                            let y: Shares = Shares::new(b3.clone(), b4);
+            [One::one(), Zero::zero()]
+                .into_iter()
+                .for_each(|b1: BigUint| {
+                    [One::one(), Zero::zero()]
+                        .into_iter()
+                        .for_each(|b2: BigUint| {
+                            [One::one(), Zero::zero()]
+                                .into_iter()
+                                .for_each(|b3: BigUint| {
+                                    for b4 in [One::one(), Zero::zero()] {
+                                        let x: Shares = Shares::new(b1.clone(), b2.clone());
+                                        let y: Shares = Shares::new(b3.clone(), b4);
 
-                            let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
-                            g.transform_and_gates();
-                            let res = g.eval();
-                            assert_eq!(res.reconstruct(), ((x.reconstruct() ^ y.reconstruct()) & x.reconstruct()) ^ &One::one());
-                        }
-                    });
+                                        let mut g =
+                                            xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
+                                        g.transform_and_gates();
+                                        let res = g.eval();
+                                        assert_eq!(
+                                            res.reconstruct(),
+                                            ((x.reconstruct() ^ y.reconstruct()) & x.reconstruct())
+                                                ^ &One::one()
+                                        );
+                                    }
+                                });
+                        });
                 });
-            });
         }
     }
 
@@ -314,21 +347,32 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()].into_iter().for_each(|b1: BigUint| {
-                [One::one(), Zero::zero()].into_iter().for_each(|b2: BigUint| {
-                    [One::one(), Zero::zero()].into_iter().for_each(|b3: BigUint| {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x: Shares = Shares::new(b1.clone(), b2.clone());
-                            let y: Shares = Shares::new(b3.clone(), b4);
+            [One::one(), Zero::zero()]
+                .into_iter()
+                .for_each(|b1: BigUint| {
+                    [One::one(), Zero::zero()]
+                        .into_iter()
+                        .for_each(|b2: BigUint| {
+                            [One::one(), Zero::zero()]
+                                .into_iter()
+                                .for_each(|b3: BigUint| {
+                                    for b4 in [One::one(), Zero::zero()] {
+                                        let x: Shares = Shares::new(b1.clone(), b2.clone());
+                                        let y: Shares = Shares::new(b3.clone(), b4);
 
-                            let mut g = xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
-                            g.transform_and_gates();
-                            let res = g.eval();
-                            assert_eq!(res.reconstruct(), ((x.reconstruct() ^ y.reconstruct()) & x.reconstruct()) ^ &One::one());
-                        }
-                    });
+                                        let mut g =
+                                            xor_and_xor(Node::in_(x.clone()), Node::in_(y.clone()));
+                                        g.transform_and_gates();
+                                        let res = g.eval();
+                                        assert_eq!(
+                                            res.reconstruct(),
+                                            ((x.reconstruct() ^ y.reconstruct()) & x.reconstruct())
+                                                ^ &One::one()
+                                        );
+                                    }
+                                });
+                        });
                 });
-            });
         }
     }
 
@@ -337,21 +381,31 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()].into_iter().for_each(|b1: BigUint| {
-                [One::one(), Zero::zero()].into_iter().for_each(|b2: BigUint| {
-                    [One::one(), Zero::zero()].into_iter().for_each(|b3: BigUint| {
-                        for b4 in [One::one(), Zero::zero()] {
-                            let x: Shares = Shares::new(b1.clone(), b2.clone());
-                            let y: Shares = Shares::new(b3.clone(), b4);
+            [One::one(), Zero::zero()]
+                .into_iter()
+                .for_each(|b1: BigUint| {
+                    [One::one(), Zero::zero()]
+                        .into_iter()
+                        .for_each(|b2: BigUint| {
+                            [One::one(), Zero::zero()]
+                                .into_iter()
+                                .for_each(|b3: BigUint| {
+                                    for b4 in [One::one(), Zero::zero()] {
+                                        let x: Shares = Shares::new(b1.clone(), b2.clone());
+                                        let y: Shares = Shares::new(b3.clone(), b4);
 
-                            let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
-                            g.transform_and_gates();
-                            let res = g.eval();
-                            assert_eq!(res.reconstruct(), ((x.reconstruct() & y.reconstruct()) & y.reconstruct()));
-                        }
-                    });
+                                        let mut g =
+                                            and_and(Node::in_(x.clone()), Node::in_(y.clone()));
+                                        g.transform_and_gates();
+                                        let res = g.eval();
+                                        assert_eq!(
+                                            res.reconstruct(),
+                                            ((x.reconstruct() & y.reconstruct()) & y.reconstruct())
+                                        );
+                                    }
+                                });
+                        });
                 });
-            });
         }
     }
 

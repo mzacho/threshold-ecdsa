@@ -269,8 +269,8 @@ pub fn deal_rands() -> Rands {
     let v: Shares = Shares::new(vx.clone(), vy.clone());
 
     Rands {
-        u: u,
-        v: v,
+        u,
+        v,
         w: Shares::new(
             wx.clone(),
             wx ^ (ux.clone() & vx.clone()) ^ (ux & vy.clone()) ^ (uy.clone() & vx) ^ (uy & vy),
