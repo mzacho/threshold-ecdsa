@@ -1,9 +1,9 @@
-use num_bigint::{BigUint, RandBigInt};
+use num_bigint::RandBigInt;
 use num_integer::Integer;
 use std::collections::HashMap;
 
 use crate::node::{Const, Gate, Node, NodeId};
-use crate::shares::{Shares, M};
+use crate::shares::{Shares, M, Nat};
 
 /// `Circuit` represents the circuit used in the BeDOZa protocol for
 /// passively secure two-party computation.
@@ -19,7 +19,7 @@ pub struct Circuit {
 /// flowing out of that node. Its used to lookup variables
 /// referred to by constant gates (in contrast to literals
 /// hard-coded into the constant gates).
-pub type Env = HashMap<NodeId, BigUint>;
+pub type Env = HashMap<NodeId, Nat>;
 
 impl Circuit {
 
@@ -128,7 +128,7 @@ impl Circuit {
     /// two nodes, whose values should been opened and inserted into the
     /// environment during evaluation of the circuit. Their product is
     /// returned.
-    pub fn lookup_const(e: &Env, c: &Const) -> BigUint {
+    pub fn lookup_const(e: &Env, c: &Const) -> Nat {
         match c {
             Const::Literal(b) => b.clone(),
             Const::Var(id) => {
@@ -281,11 +281,11 @@ pub fn deal_rands() -> Rands {
     let mut rng = rand::thread_rng();
 
     // Pick random elements from from Zm
-    let ux: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let uy: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let vx: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let vy: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let wx: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let ux: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let uy: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let vx: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let vy: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let wx: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
 
     let u: Shares = Shares::new(ux.clone(), uy.clone());
     let v: Shares = Shares::new(vx.clone(), vy.clone());

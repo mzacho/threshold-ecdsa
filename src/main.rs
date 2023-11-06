@@ -1,17 +1,14 @@
 use circuit::push_node;
 use node::{as_nodes, Const, Node};
-use num_bigint::BigUint;
 use num_traits::FromPrimitive;
 use std::env;
 
 use crate::circuit::Circuit;
-use crate::shares::Shares;
+use crate::shares::{Shares, Nat};
 
 mod circuit;
 mod node;
 mod shares;
-
-// type Nat = BigUint; // represent natural numbers as BigUint
 
 fn main() {
     // Inputs
@@ -54,13 +51,13 @@ fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
 
     // first layer
 
-    let xor_xa = Node::add_unary(xa_id, Const::Literal(BigUint::from_i8(1).unwrap()));
+    let xor_xa = Node::add_unary(xa_id, Const::Literal(Nat::from_i8(1).unwrap()));
     let xor_xa_id = push_node(&mut g, xor_xa);
 
-    let xor_xb = Node::add_unary(xb_id, Const::Literal(BigUint::from_i8(1).unwrap()));
+    let xor_xb = Node::add_unary(xb_id, Const::Literal(Nat::from_i8(1).unwrap()));
     let xor_xb_id = push_node(&mut g, xor_xb);
 
-    let xor_xr = Node::add_unary(xr_id, Const::Literal(BigUint::from_i8(1).unwrap()));
+    let xor_xr = Node::add_unary(xr_id, Const::Literal(Nat::from_i8(1).unwrap()));
     let xor_xr_id = push_node(&mut g, xor_xr);
 
     // second layer
@@ -76,13 +73,13 @@ fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
 
     // third layer
 
-    let xor_and_ya = Node::add_unary(and_ya_id, Const::Literal(BigUint::from_i8(1).unwrap()));
+    let xor_and_ya = Node::add_unary(and_ya_id, Const::Literal(Nat::from_i8(1).unwrap()));
     let xor_and_ya_id = push_node(&mut g, xor_and_ya);
 
-    let xor_and_yb = Node::add_unary(and_yb_id, Const::Literal(BigUint::from_i8(1).unwrap()));
+    let xor_and_yb = Node::add_unary(and_yb_id, Const::Literal(Nat::from_i8(1).unwrap()));
     let xor_and_yb_id = push_node(&mut g, xor_and_yb);
 
-    let xor_and_yr = Node::add_unary(and_yr_id, Const::Literal(BigUint::from_i8(1).unwrap()));
+    let xor_and_yr = Node::add_unary(and_yr_id, Const::Literal(Nat::from_i8(1).unwrap()));
     let xor_and_yr_id = push_node(&mut g, xor_and_yr);
 
     // fourth layer
@@ -149,14 +146,14 @@ fn parse_blood_type(s: &str) -> u8 {
     i
 }
 
-fn as_bool_arr(n: u8) -> [BigUint; 3] {
+fn as_bool_arr(n: u8) -> [Nat; 3] {
     let mut res = [
-        BigUint::from_i64(0).unwrap(),
-        BigUint::from_i64(0).unwrap(),
-        BigUint::from_i64(0).unwrap(),
+        Nat::from_i64(0).unwrap(),
+        Nat::from_i64(0).unwrap(),
+        Nat::from_i64(0).unwrap(),
     ];
     for i in 0..3 {
-        res[2 - i] = BigUint::from_u8(((n >> i) % 2 != 0) as u8).unwrap();
+        res[2 - i] = Nat::from_u8(((n >> i) % 2 != 0) as u8).unwrap();
     }
     res
 }
@@ -247,13 +244,13 @@ mod tests {
         for _ in 0..100 {
             [One::one(), Zero::zero()]
                 .into_iter()
-                .for_each(|b1: BigUint| {
+                .for_each(|b1: Nat| {
                     [One::one(), Zero::zero()]
                         .into_iter()
-                        .for_each(|b2: BigUint| {
+                        .for_each(|b2: Nat| {
                             [One::one(), Zero::zero()]
                                 .into_iter()
-                                .for_each(|b3: BigUint| {
+                                .for_each(|b3: Nat| {
                                     for b4 in [One::one(), Zero::zero()] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
@@ -279,13 +276,13 @@ mod tests {
         for _ in 0..100 {
             [One::one(), Zero::zero()]
                 .into_iter()
-                .for_each(|b1: BigUint| {
+                .for_each(|b1: Nat| {
                     [One::one(), Zero::zero()]
                         .into_iter()
-                        .for_each(|b2: BigUint| {
+                        .for_each(|b2: Nat| {
                             [One::one(), Zero::zero()]
                                 .into_iter()
-                                .for_each(|b3: BigUint| {
+                                .for_each(|b3: Nat| {
                                     for b4 in [One::one(), Zero::zero()] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
@@ -299,7 +296,7 @@ mod tests {
                                         assert_eq!(
                                             res.open(),
                                             ((x.open() * y.open()).mod_floor(&M)
-                                                + BigUint::from(1u32))
+                                                + Nat::from(1u32))
                                             .mod_floor(&M)
                                         );
                                     }
@@ -316,13 +313,13 @@ mod tests {
         for _ in 0..100 {
             [One::one(), Zero::zero()]
                 .into_iter()
-                .for_each(|b1: BigUint| {
+                .for_each(|b1: Nat| {
                     [One::one(), Zero::zero()]
                         .into_iter()
-                        .for_each(|b2: BigUint| {
+                        .for_each(|b2: Nat| {
                             [One::one(), Zero::zero()]
                                 .into_iter()
-                                .for_each(|b3: BigUint| {
+                                .for_each(|b3: Nat| {
                                     for b4 in [One::one(), Zero::zero()] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
@@ -336,7 +333,7 @@ mod tests {
                                         assert_eq!(
                                             res.open(),
                                             (((x.clone().open() + y.open()) * x.open())
-                                                + BigUint::from(1_u32))
+                                                + Nat::from(1_u32))
                                             .mod_floor(&M)
                                         );
                                     }
@@ -353,13 +350,13 @@ mod tests {
         for _ in 0..100 {
             [One::one(), Zero::zero()]
                 .into_iter()
-                .for_each(|b1: BigUint| {
+                .for_each(|b1: Nat| {
                     [One::one(), Zero::zero()]
                         .into_iter()
-                        .for_each(|b2: BigUint| {
+                        .for_each(|b2: Nat| {
                             [One::one(), Zero::zero()]
                                 .into_iter()
-                                .for_each(|b3: BigUint| {
+                                .for_each(|b3: Nat| {
                                     for b4 in [One::one(), Zero::zero()] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
@@ -375,7 +372,7 @@ mod tests {
                                             (((x.clone().open() + y.open()).mod_floor(&M)
                                                 * x.open())
                                             .mod_floor(&M)
-                                                + BigUint::from(1u32))
+                                                + Nat::from(1u32))
                                             .mod_floor(&M)
                                         );
                                     }
@@ -392,13 +389,13 @@ mod tests {
         for _ in 0..100 {
             [One::one(), Zero::zero()]
                 .into_iter()
-                .for_each(|b1: BigUint| {
+                .for_each(|b1: Nat| {
                     [One::one(), Zero::zero()]
                         .into_iter()
-                        .for_each(|b2: BigUint| {
+                        .for_each(|b2: Nat| {
                             [One::one(), Zero::zero()]
                                 .into_iter()
-                                .for_each(|b3: BigUint| {
+                                .for_each(|b3: Nat| {
                                     for b4 in [One::one(), Zero::zero()] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);

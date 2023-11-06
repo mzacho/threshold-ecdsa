@@ -13,20 +13,24 @@ lazy_static! {
     pub static ref M: BigUint = BigUint::from(153_u32);
 }
 
+/// Natural numbers represented as big unsigned ints
+pub type Nat = BigUint;
+
+/// An additive share [s] = (x, y) where x + y mod M = s
 #[derive(Debug, Clone)]
 pub struct Shares {
-    pub x: BigUint,
-    pub y: BigUint,
+    pub x: Nat,
+    pub y: Nat,
 }
 
 impl Shares {
     /// Instantiate a new share with the given `x` and `y` values
-    pub fn new(x: BigUint, y: BigUint) -> Self {
+    pub fn new(x: Nat, y: Nat) -> Self {
         Shares { x, y }
     }
 
     /// Reconstruct the secret from the shares
-    pub fn open(self) -> BigUint {
+    pub fn open(self) -> Nat {
         (self.x + self.y).mod_floor(&M)
     }
 
@@ -44,26 +48,26 @@ impl Add for Shares {
     }
 }
 
-impl Add<BigUint> for Shares {
+impl Add<Nat> for Shares {
     type Output = Self;
 
-    fn add(self, rhs: BigUint) -> Self::Output {
+    fn add(self, rhs: Nat) -> Self::Output {
         Shares::new(self.x + rhs, self.y)
     }
 }
 
-impl Mul<BigUint> for Shares {
+impl Mul<Nat> for Shares {
     type Output = Self;
 
-    fn mul(self, rhs: BigUint) -> Self::Output {
+    fn mul(self, rhs: Nat) -> Self::Output {
         Shares::new(self.x * &rhs, self.y * rhs)
     }
 }
 
-// impl BitAnd<&BigUint> for &Shares {
+// impl BitAnd<&Nat> for &Shares {
 //     type Output = Shares;
 
-//     fn bitand(self, rhs: &BigUint) -> Self::Output {
+//     fn bitand(self, rhs: &Nat) -> Self::Output {
 //         self.mult(rhs)
 //     }
 // }
@@ -84,14 +88,14 @@ mod test {
 
     /// Create a share of a constant `c`
     /// Precondition: 0 <= c < M
-    pub fn create_share(c: &BigUint) -> Shares {
+    pub fn create_share(c: &Nat) -> Shares {
         assert!(c < &M);
         let mut rng = rand::thread_rng();
 
         // Pick random from Zm
-        let x: BigUint = rng.gen_biguint(M.bits()).mod_floor(&M);
+        let x: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
         // Compute (c - x) mod m, avoiding underflow if c < x
-        let y: BigUint = if c < &x {
+        let y: Nat = if c < &x {
             &M.clone() + c - x.clone()
         } else {
             c - x.clone()
@@ -110,10 +114,10 @@ mod test {
 
     #[test]
     fn test_shares_add() {
-        let x = BigUint::from(42_u32);
+        let x = Nat::from(42_u32);
         let s1 = create_share(&x);
 
-        let y = BigUint::from(120_u32);
+        let y = Nat::from(120_u32);
         let s2 = create_share(&y);
 
         let s3 = s1.clone() + x.clone();
@@ -126,11 +130,11 @@ mod test {
 
     #[test]
     fn test_shares_mul() {
-        let x1 = BigUint::from(0b1010u32).mod_floor(&M);
+        let x1 = Nat::from(0b1010u32).mod_floor(&M);
         let shares1 = create_share(&x1);
         assert_eq!(shares1.clone().open(), (x1.clone()).mod_floor(&M));
 
-        let y = BigUint::from(0b1111u32).mod_floor(&M);
+        let y = Nat::from(0b1111u32).mod_floor(&M);
 
         let mul_share_constant = shares1 * y.clone();
         assert_eq!(mul_share_constant.open(), (x1 * y).mod_floor(&M));
