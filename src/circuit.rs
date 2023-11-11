@@ -37,77 +37,66 @@ impl Circuit {
             if node.value.borrow().is_some() {
                 continue;
             }
-            match &node.op {
-                Gate::AddUnary(c) => {
-                    if let Some(p1_id) = node.in_1 {
-                        let p1 = &self.nodes[p1_id].value.borrow();
-                        if p1.is_some() {
-                            let p1_val = p1.as_ref().unwrap().clone();
-                            let node = &self.nodes[id];
-                            let b = Self::lookup_const(&env, c);
-                            *node.value.borrow_mut() = Some(p1_val + b);
-                        } else {
-                            // In this case a node's parent has no value yet
-                            // Since we assume the circuit only has forward
-                            // gates, then this shouldn't be possible
-                            panic!("expected value on AddUnary gate parent")
-                        }
-                    } else {
-                        panic!("expected parent id on AddUnary gate")
-                    }
+            let p1_id = node.in_1;
+            if p1_id.is_some() {
+                let p1 = &self.nodes[p1_id.unwrap()].value.borrow();
+                if !p1.is_some() {
+                    // In this case a node's parent has no value yet
+                    // Since we assume the circuit only has forward
+                    // gates, then this shouldn't be possible
+                    panic!("expected value on gate parent")
                 }
-                Gate::Mul => panic!("circuit not normalized"),
-                Gate::Add => match (node.in_1, node.in_2) {
-                    (Some(p1_id), Some(p2_id)) => {
-                        let p1 = &self.nodes[p1_id].value.borrow();
-                        let p2 = &self.nodes[p2_id].value.borrow();
-                        if p1.is_some() && p2.is_some() {
-                            let v1 = p1.as_ref().unwrap().clone();
-                            let v2 = p2.as_ref().unwrap().clone();
-                            let node = &self.nodes[id];
-                            *node.value.borrow_mut() = Some(v1 + v2);
-                        } else {
-                            panic!("no values on parents of AND")
-                        }
+                match &node.op {
+                    Gate::AddUnary(c) => {
+                                let p1_val = p1.as_ref().unwrap().clone();
+                                let node = &self.nodes[id];
+                                let const_value = Self::lookup_const(&env, c);
+                                *node.value.borrow_mut() = Some(p1_val + const_value);
                     }
-                    (_, _) => panic!("no parent ids on AND gate"),
-                },
-                Gate::In => continue,
-                Gate::Open => {
-                    match node.in_1 {
-                        Some(pid) => {
-                            let p = &self.nodes[pid].value.borrow();
-                            if p.is_some() {
-                                let s = p.as_ref().unwrap().clone();
-                                // Update the environment with the opened
-                                // value of the node
-                                env.insert(id, s.open());
+                    Gate::Mul => panic!("circuit not normalized"),
+                    Gate::Add => {
+                            if let Some(p2_id) = node.in_2 {
+                                let p2 = &self.nodes[p2_id].value.borrow();
+                                if p1.is_some() && p2.is_some() {
+                                    let v1 = p1.as_ref().unwrap().clone();
+                                    let v2 = p2.as_ref().unwrap().clone();
+                                    let node = &self.nodes[id];
+                                    *node.value.borrow_mut() = Some(v1 + v2);
+                                } else {
+                                    panic!("no values on parents of ADD")
+                                }
                             } else {
-                                panic!("no value to open");
+                                panic!("expected parent id on Add gate")
                             }
+                    },
+                    Gate::In => continue,
+                    Gate::Open => {
+                        match node.in_1 {
+                            Some(pid) => {
+                                let p = &self.nodes[pid].value.borrow();
+                                if p.is_some() {
+                                    let s = p.as_ref().unwrap().clone();
+                                    // Update the environment with the opened
+                                    // value of the node
+                                    env.insert(id, s.open());
+                                } else {
+                                    panic!("no value to open");
+                                }
+                            }
+                            None => panic!("no parent on open gate"),
                         }
-                        None => panic!("no parent on open gate"),
+                    }
+                    Gate::MulUnary(c) => {
+                                let p1_val = p1.as_ref().unwrap().clone();
+                                let node = &self.nodes[id];
+                                let b = Self::lookup_const(&env, c);
+                                *node.value.borrow_mut() = Some(p1_val * b);
                     }
                 }
-                Gate::MulUnary(c) => {
-                    if let Some(p1_id) = node.in_1 {
-                        let p1 = &self.nodes[p1_id].value.borrow();
-                        if p1.is_some() {
-                            let p1_val = p1.as_ref().unwrap().clone();
-                            let node = &self.nodes[id];
-                            let b = Self::lookup_const(&env, c);
-                            *node.value.borrow_mut() = Some(p1_val * b);
-                        } else {
-                            // In this case a node's parent has no value yet
-                            // Since we assume the circuit only has forward
-                            // gates, then this shouldn't be possible
-                            panic!("expected value on MulUnary gate parent")
-                        }
-                    } else {
-                        panic!("expected parent id on XOR gate")
-                    }
-                }
+            } else {
+                panic!("expected parent id on AddUnary gate")
             }
+            
         }
         self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
@@ -132,16 +121,16 @@ impl Circuit {
         match c {
             Const::Literal(b) => b.clone(),
             Const::Var(id) => {
-                if let Some(b) = e.get(&id) {
-                    b.clone()
+                if let Some(const_value) = e.get(&id) {
+                    const_value.clone()
                 } else {
                     panic!("could not look up const var");
                 }
             }
             Const::AND(id1, id2) => match (e.get(&id1), e.get(&id2)) {
-                (Some(b1), Some(b2)) => {
-                    // Compute -b1*b2 mod m, i.e. m - ((b1 * b2) mod m)
-                    &M.clone() - (b1.clone() * b2.clone()).mod_floor(&M)
+                (Some(const_value_1), Some(const_value_2)) => {
+                    // Compute m - (e * d) mod m
+                    &M.clone() - (const_value_1.clone() * const_value_2.clone()).mod_floor(&M)
             },
                 (_, _) => panic!("could nok look up const vars for and"),
             },
@@ -200,35 +189,35 @@ impl Circuit {
                     self.insert_node(oeid, Node::open(eid));
 
                     // Insert unary MUL gates for [x] and e
-                    let and_xe_id = i + 6;
+                    let mul_xe_id = i + 6;
                     let c = Const::Var(oeid);
-                    self.insert_node(and_xe_id, Node::mul_unary(pid1, c));
+                    self.insert_node(mul_xe_id, Node::mul_unary(pid1, c));
 
                     // Insert unary MUL gates for [y] and d
-                    let and_yd_id = i + 7;
+                    let mul_yd_id = i + 7;
                     let c = Const::Var(odid);
-                    self.insert_node(and_yd_id, Node::mul_unary(pid2, c));
+                    self.insert_node(mul_yd_id, Node::mul_unary(pid2, c));
 
                     // Insert input gate for w
                     let wid = i + 8;
                     self.insert_node(wid, w.as_in_node());
 
-                    // Insert ADD gate with inputs w and xor_xe
-                    let xor_wxe_id = i + 9;
-                    self.insert_node(xor_wxe_id, Node::add(wid, and_xe_id));
+                    // Insert ADD gate with inputs w and add_xe
+                    let add_wxe_id = i + 9;
+                    self.insert_node(add_wxe_id, Node::add(wid, mul_xe_id));
 
                     // Insert ADD gate with inputs and_yd and -e*d
-                    let xor_and_yd_ed_id = i + 10;
+                    let sub_mull_yd_ed_id = i + 10;
                     self.insert_node(
-                        xor_and_yd_ed_id,
-                        Node::add_unary(and_yd_id, Const::AND(oeid, odid)),
+                        sub_mull_yd_ed_id,
+                        Node::add_unary(mul_yd_id, Const::AND(oeid, odid)),
                     );
 
-                    // Insert XOR gate with inputs xor_wxe and xor_and_yd_ed
-                    let xor_xor_wxe_xor_and_yd_ed_id = i + 11;
+                    // Insert ADD gate with inputs add_wxe and sub_mul_yd_ed
+                    let add_add_wxe_sub_mul_yd_ed_id = i + 11;
                     self.insert_node(
-                        xor_xor_wxe_xor_and_yd_ed_id,
-                        Node::add(xor_wxe_id, xor_and_yd_ed_id),
+                        add_add_wxe_sub_mul_yd_ed_id,
+                        Node::add(add_wxe_id, sub_mull_yd_ed_id),
                     );
                     i += 11;
                 }
