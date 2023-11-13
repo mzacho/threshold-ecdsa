@@ -1,29 +1,33 @@
-use getrandom::getrandom;
-use num_bigint::BigUint;
-use num_traits::FromPrimitive;
+use num_bigint::RandBigInt;
+use num_integer::Integer;
 use std::collections::HashMap;
 
 use crate::node::{Const, Gate, Node, NodeId};
-use crate::shares::Shares;
+use crate::shares::{Shares, M, Nat};
 
+/// `Circuit` represents the circuit used in the BeDOZa protocol for
+/// passively secure two-party computation.
+///
+/// A circuit consists of a vector of Nodes, i.e. Add, Mul, Open etc.,
+/// whose IDs are implicit from their index into the Vec.
 #[derive(Debug)]
 pub struct Circuit {
     pub nodes: Vec<Node>,
 }
 
-pub type Env = HashMap<NodeId, BigUint>;
+/// Env is a mapping from node ids to openings of the secret
+/// flowing out of that node. Its used to lookup variables
+/// referred to by constant gates (in contrast to literals
+/// hard-coded into the constant gates).
+pub type Env = HashMap<NodeId, Nat>;
 
 impl Circuit {
-    // Evaluates the circuit and returns the shares of the last node
-    //
-    // It does so by iterating over all nodes, and propagating values from
-    // parents to children with respect to the operation of the current node.
 
+    /// Evaluates the circuit and returns the shares of the last node
+    ///
+    /// It does so by iterating over all nodes, and propagating values from
+    /// parents to children with respect to the operation of the current node.
     pub fn eval(self) -> Shares {
-        // Env is a mapping from node ids to openings of the secret
-        // flowing out of that node. Its used to lookup variables
-        // referred to by constant gates (in contrast to literals
-        // hard-coded into the constant gates).
 
         let mut env: Env = HashMap::new();
 
@@ -33,120 +37,127 @@ impl Circuit {
             if node.value.borrow().is_some() {
                 continue;
             }
-            match &node.op {
-                Gate::XORUnary(c) => {
-                    if let Some(p1_id) = node.in_1 {
-                        let p1 = &self.nodes[p1_id].value.borrow();
-                        if p1.is_some() {
-                            let p1_val = p1.as_ref().unwrap();
-                            let node = &self.nodes[id];
-                            let b = Self::lookup_const(&env, c);
-                            *node.value.borrow_mut() = Some(p1_val ^ &b);
-                        } else {
-                            // In this case a node's parent has no value yet
-                            // Since we assume the circuit only has forward
-                            // gates, then this shouldn't be possible
-                            panic!("expected value on XOR gate parent")
-                        }
-                    } else {
-                        panic!("expected parent id on XOR gate")
-                    }
+            let p1_id = node.in_1;
+            if p1_id.is_some() {
+                let p1 = &self.nodes[p1_id.unwrap()].value.borrow();
+                if !p1.is_some() {
+                    // In this case a node's parent has no value yet
+                    // Since we assume the circuit only has forward
+                    // gates, then this shouldn't be possible
+                    panic!("expected value on gate parent")
                 }
-                Gate::AND => panic!("circuit not normalized"),
-                Gate::XOR => match (node.in_1, node.in_2) {
-                    (Some(p1_id), Some(p2_id)) => {
-                        let p1 = &self.nodes[p1_id].value.borrow();
-                        let p2 = &self.nodes[p2_id].value.borrow();
-                        if p1.is_some() && p2.is_some() {
-                            let v1 = p1.as_ref().unwrap();
-                            let v2 = p2.as_ref().unwrap();
-                            let node = &self.nodes[id];
-                            *node.value.borrow_mut() = Some(v1 ^ v2);
-                        } else {
-                            panic!("no values on parents of AND")
-                        }
+                match &node.op {
+                    Gate::AddUnary(c) => {
+                                let p1_val = p1.as_ref().unwrap().clone();
+                                let node = &self.nodes[id];
+                                let const_value = Self::lookup_const(&env, c);
+                                *node.value.borrow_mut() = Some(p1_val + const_value);
                     }
-                    (_, _) => panic!("no parent ids on AND gate"),
-                },
-                Gate::IN => continue,
-                Gate::OPEN => {
-                    match node.in_1 {
-                        Some(pid) => {
-                            let p = &self.nodes[pid].value.borrow();
-                            if p.is_some() {
-                                let s = p.as_ref().unwrap();
-                                // Update the environment with the opened
-                                // value of the node
-                                env.insert(id, s.reconstruct());
+                    Gate::Mul => panic!("circuit not normalized"),
+                    Gate::Add => {
+                            if let Some(p2_id) = node.in_2 {
+                                let p2 = &self.nodes[p2_id].value.borrow();
+                                if p1.is_some() && p2.is_some() {
+                                    let v1 = p1.as_ref().unwrap().clone();
+                                    let v2 = p2.as_ref().unwrap().clone();
+                                    let node = &self.nodes[id];
+                                    *node.value.borrow_mut() = Some(v1 + v2);
+                                } else {
+                                    panic!("no values on parents of ADD")
+                                }
                             } else {
-                                panic!("no value to open");
+                                panic!("expected parent id on Add gate")
                             }
+                    },
+                    Gate::In => continue,
+                    Gate::Open => {
+                        match node.in_1 {
+                            Some(pid) => {
+                                let p = &self.nodes[pid].value.borrow();
+                                if p.is_some() {
+                                    let s = p.as_ref().unwrap().clone();
+                                    // Update the environment with the opened
+                                    // value of the node
+                                    env.insert(id, s.open());
+                                } else {
+                                    panic!("no value to open");
+                                }
+                            }
+                            None => panic!("no parent on open gate"),
                         }
-                        None => panic!("no parent on open gate"),
+                    }
+                    Gate::MulUnary(c) => {
+                                let p1_val = p1.as_ref().unwrap().clone();
+                                let node = &self.nodes[id];
+                                let b = Self::lookup_const(&env, c);
+                                *node.value.borrow_mut() = Some(p1_val * b);
                     }
                 }
-                Gate::ANDUnary(c) => {
-                    if let Some(p1_id) = node.in_1 {
-                        let p1 = &self.nodes[p1_id].value.borrow();
-                        if p1.is_some() {
-                            let p1_val = p1.as_ref().unwrap();
-                            let node = &self.nodes[id];
-                            let b = Self::lookup_const(&env, c);
-                            *node.value.borrow_mut() = Some(p1_val & &b);
-                        } else {
-                            // In this case a node's parent has no value yet
-                            // Since we assume the circuit only has forward
-                            // gates, then this shouldn't be possible
-                            panic!("expected value on XOR gate parent")
-                        }
-                    } else {
-                        panic!("expected parent id on XOR gate")
-                    }
-                }
+            } else {
+                panic!("expected parent id on AddUnary gate")
             }
+            
         }
         self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
 
-    pub fn lookup_const(e: &Env, c: &Const) -> BigUint {
+    /// Returns the constant represented by `c`, by possibly performing
+    /// a lookup into the environment `e`.
+    ///
+    /// Constants are either literal, variables or the product of two
+    /// constants.
+    ///
+    /// If `c` is a literal, its literal value is directly returned.
+    ///
+    /// If `c` is a variable it contains the id of a node, whose value
+    /// should have been opened and inserted into the environment during
+    /// evaluation of the circuit. Its value is returned.
+    ///
+    /// If `c` is the product of two constants, it contains the ids of
+    /// two nodes, whose values should been opened and inserted into the
+    /// environment during evaluation of the circuit. Their product is
+    /// returned.
+    pub fn lookup_const(e: &Env, c: &Const) -> Nat {
         match c {
             Const::Literal(b) => b.clone(),
             Const::Var(id) => {
-                if let Some(b) = e.get(&id) {
-                    b.clone()
+                if let Some(const_value) = e.get(&id) {
+                    const_value.clone()
                 } else {
                     panic!("could not look up const var");
                 }
             }
             Const::AND(id1, id2) => match (e.get(&id1), e.get(&id2)) {
-                (Some(b1), Some(b2)) => b1.clone() & b2.clone(),
+                (Some(const_value_1), Some(const_value_2)) => {
+                    // Compute m - (e * d) mod m
+                    &M.clone() - (const_value_1.clone() * const_value_2.clone()).mod_floor(&M)
+            },
                 (_, _) => panic!("could nok look up const vars for and"),
             },
         }
     }
 
-    // Transforms all AND gates in a circuit. Any gates in the
-    // circuit such as
-    //
-    // [x] AND [y]
-    //
-    // are removed and replaced by the gates correponding to
-    // the protocol for AND of Two Wires from the lecture notes.
-    //
-    // The protocol makes use a dealer, whose output is added
-    // as inputs gates in the circuit.
-    //
-    // OPEN gates are trivial, in that they only refer to the
-    // id of the gate containing the value being opened.
-    // The actual reconstruction of secrets is being
-    // handled in the evaluation of the circuit.
-
+    /// Transforms all MUL gates in a circuit. Any gates in the
+    /// circuit such as
+    ///
+    /// [x] MUL [y]
+    ///
+    /// are removed and replaced by the gates correponding to
+    /// the protocol for MUL of Two Wires from the lecture notes.
+    ///
+    /// The protocol makes use a dealer, whose output is added
+    /// as inputs gates in the circuit.
+    ///
+    /// OPEN gates are trivial, in that they only refer to the
+    /// id of the gate containing the value being opened.
+    /// The actual reconstruction of secrets is being
+    /// handled in the evaluation of the circuit.
     pub fn transform_and_gates(&mut self) -> () {
         let mut i = 0;
         while i < self.nodes.len() {
             let node = &self.nodes[i];
             match node.op {
-                Gate::AND => {
+                Gate::Mul => {
                     let Rands { u, v, w } = deal_rands();
                     let pid1 = node.in_1.unwrap();
                     let pid2 = node.in_2.unwrap();
@@ -158,17 +169,17 @@ impl Circuit {
                     self.nodes.insert(i, u.as_in_node());
                     let uid = i;
 
-                    // Insert XOR gate with inputs pid1 and u
+                    // Insert ADD gate with inputs pid1 and u
                     let did = i + 1;
-                    self.insert_node(did, Node::xor(pid1, uid));
+                    self.insert_node(did, Node::add(pid1, uid));
 
                     // Insert input gate for v
                     let vid = i + 2;
                     self.insert_node(vid, v.as_in_node());
 
-                    // Insert XOR gate with inputs pid2 and v
+                    // Insert ADD gate with inputs pid2 and v
                     let eid = i + 3;
-                    self.insert_node(eid, Node::xor(pid2, vid));
+                    self.insert_node(eid, Node::add(pid2, vid));
 
                     // Insert OPEN gates for d and e
                     let odid = i + 4;
@@ -177,36 +188,36 @@ impl Circuit {
 
                     self.insert_node(oeid, Node::open(eid));
 
-                    // Insert unary AND gates for [x] and e
-                    let and_xe_id = i + 6;
+                    // Insert unary MUL gates for [x] and e
+                    let mul_xe_id = i + 6;
                     let c = Const::Var(oeid);
-                    self.insert_node(and_xe_id, Node::and_unary(pid1, c));
+                    self.insert_node(mul_xe_id, Node::mul_unary(pid1, c));
 
-                    // Insert unary XOR gates for [y] and d
-                    let and_yd_id = i + 7;
+                    // Insert unary MUL gates for [y] and d
+                    let mul_yd_id = i + 7;
                     let c = Const::Var(odid);
-                    self.insert_node(and_yd_id, Node::and_unary(pid2, c));
+                    self.insert_node(mul_yd_id, Node::mul_unary(pid2, c));
 
                     // Insert input gate for w
                     let wid = i + 8;
                     self.insert_node(wid, w.as_in_node());
 
-                    // Insert XOR gate with inputs w and xor_xe
-                    let xor_wxe_id = i + 9;
-                    self.insert_node(xor_wxe_id, Node::xor(wid, and_xe_id));
+                    // Insert ADD gate with inputs w and add_xe
+                    let add_wxe_id = i + 9;
+                    self.insert_node(add_wxe_id, Node::add(wid, mul_xe_id));
 
-                    // Insert XOR gate with inputs and_yd and e*d
-                    let xor_and_yd_ed_id = i + 10;
+                    // Insert ADD gate with inputs and_yd and -e*d
+                    let sub_mull_yd_ed_id = i + 10;
                     self.insert_node(
-                        xor_and_yd_ed_id,
-                        Node::xor_unary(and_yd_id, Const::AND(oeid, odid)),
+                        sub_mull_yd_ed_id,
+                        Node::add_unary(mul_yd_id, Const::AND(oeid, odid)),
                     );
 
-                    // Insert XOR gate with inputs xor_wxe and xor_and_yd_ed
-                    let xor_xor_wxe_xor_and_yd_ed_id = i + 11;
+                    // Insert ADD gate with inputs add_wxe and sub_mul_yd_ed
+                    let add_add_wxe_sub_mul_yd_ed_id = i + 11;
                     self.insert_node(
-                        xor_xor_wxe_xor_and_yd_ed_id,
-                        Node::xor(xor_wxe_id, xor_and_yd_ed_id),
+                        add_add_wxe_sub_mul_yd_ed_id,
+                        Node::add(add_wxe_id, sub_mull_yd_ed_id),
                     );
                     i += 11;
                 }
@@ -216,15 +227,15 @@ impl Circuit {
         }
     }
 
+    /// Insert `Node` in `self.nodes` and increment parent pointers of all
+    /// nodes whose parent(s) have an `id` > `index` (similar to how one
+    /// would insert an element at the front of a linked list).
+    ///
+    /// Since we only have forward edges in the circuit, then nodes
+    /// can only point to previous element in the vector. We can
+    /// therefore skip elements [0; index].
     pub fn insert_node(&mut self, index: usize, n: Node) -> () {
         self.nodes.insert(index, n);
-
-        // Increment parent pointers, if they point to an element
-        // after index.
-        //
-        // Since we only have forward edges in the circuit, then nodes
-        // can only point to previous element in the vector. We can
-        // therefore skip elements [0; index].
 
         let len = self.nodes.len();
         for i in index + 1..len {
@@ -242,40 +253,48 @@ impl Circuit {
     }
 }
 
-// The random shares distributed by the dealer to alice and bob.
-// Invariant:
-//   u.x & v.x = w.x
-//   u.y & v.y = w.y
-
+/// The random shares distributed by the dealer to alice and bob.
+/// Invariant:
+///   (u.open() * v.open()).mod_floor(&M) = w.open()
 pub struct Rands {
     pub u: Shares,
     pub v: Shares,
     pub w: Shares,
 }
 
+/// Constructs new secret shares of u, v, w such that u * v = w.
+///
+/// Is does so by choosing random values in Zm for ux, uy, vx, vy and wx,
+/// and computes wy as (((ux + uy) * (vx + vy)) mod m - wx) mod m
 pub fn deal_rands() -> Rands {
-    // Sample random bits
-    let mut buf = [0];
-    if let Err(e) = getrandom(&mut buf) {
-        panic!("{e}");
-    }
-    let ux: BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let uy: BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let vx: BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let vy: BigUint = BigUint::from_u8(buf[0]).unwrap();
-    let wx: BigUint = BigUint::from_u8(buf[0]).unwrap();
+    let mut rng = rand::thread_rng();
+
+    // Pick random elements from from Zm
+    let ux: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let uy: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let vx: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let vy: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let wx: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
 
     let u: Shares = Shares::new(ux.clone(), uy.clone());
     let v: Shares = Shares::new(vx.clone(), vy.clone());
 
-    Rands {
-        u: u,
-        v: v,
-        w: Shares::new(
-            wx.clone(),
-            wx ^ (ux.clone() & vx.clone()) ^ (ux & vy.clone()) ^ (uy.clone() & vx) ^ (uy & vy),
-        ),
-    }
+    // Compute u * v mod m
+    let k1 = ux.clone() * vx.clone();
+    let k2 = ux * vy.clone();
+    let k3 = uy.clone() * vx;
+    let k4 = uy * vy;
+    let uv = (k1 + k2 + k3 + k4).mod_floor(&M);
+
+    // Compute (u * v) mod m - wx, avoiding underflow if uv < wx
+    let wy = if uv < wx.clone() {
+        &M.clone() + uv - wx.clone()
+    } else {
+        uv - wx.clone()
+    };
+
+    let w = Shares::new(wx, wy);
+    Rands { u, v, w }
 }
 
 pub fn push_node(c: &mut Circuit, n: Node) -> NodeId {

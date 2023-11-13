@@ -7,12 +7,12 @@ use crate::shares::Shares;
 
 #[derive(Debug, Clone)]
 pub enum Gate {
-    IN,
-    XORUnary(Const),
-    ANDUnary(Const),
-    AND,
-    XOR,
-    OPEN,
+    In,
+    AddUnary(Const),
+    MulUnary(Const),
+    Mul,
+    Add,
+    Open,
 }
 
 #[derive(Debug, Clone)]
@@ -24,6 +24,18 @@ pub enum Const {
 
 pub type NodeId = usize;
 
+/// `Node` represents a node in the BeDOZa circuit.
+///
+/// Its function is determined by the value of the `op` operation.
+/// It contains a `value`, which can be `None` or `Some` of `Shares`.
+/// During evaluation.
+///
+/// Input nodes whose `op` is `In` are created with a `value` of `Some`.
+/// `Mul`, `Add`, `AddUnary(Const)` and `MulUnary(Const)` are created with
+/// a `value` of `None`, which changes to `Some` during evaluation.
+/// `Open` nodes always have a `value` of `None`, even after evaluation.
+/// Their value is inserted into the environment of the `Circuit` during
+/// evaluation.
 #[derive(Debug, Clone)]
 pub struct Node {
     pub in_1: Option<NodeId>,
@@ -32,49 +44,50 @@ pub struct Node {
     pub value: RefCell<Option<Shares>>,
 }
 
+/// Default nodes are inputs
 impl Default for Node {
     fn default() -> Self {
         Node {
             in_1: None,
             in_2: None,
-            op: Gate::IN,
+            op: Gate::In,
             value: RefCell::new(None),
         }
     }
 }
 
 impl Node {
-    pub fn and(pid1: usize, pid2: usize) -> Self {
+    pub fn mul(pid1: usize, pid2: usize) -> Self {
         Node {
             in_1: Some(pid1),
             in_2: Some(pid2),
-            op: Gate::AND,
+            op: Gate::Mul,
             ..Default::default()
         }
     }
 
-    pub fn xor(pid1: usize, pid2: usize) -> Self {
+    pub fn add(pid1: usize, pid2: usize) -> Self {
         Node {
             in_1: Some(pid1),
             in_2: Some(pid2),
-            op: Gate::XOR,
+            op: Gate::Add,
             ..Default::default()
         }
     }
 
-    pub fn xor_unary(pid1: usize, c: Const) -> Self {
+    pub fn add_unary(pid1: usize, c: Const) -> Self {
         Node {
             in_1: Some(pid1),
             in_2: None,
-            op: Gate::XORUnary(c),
+            op: Gate::AddUnary(c),
             ..Default::default()
         }
     }
 
-    pub fn and_unary(pid: usize, c: Const) -> Self {
+    pub fn mul_unary(pid: usize, c: Const) -> Self {
         Node {
             in_1: Some(pid),
-            op: Gate::ANDUnary(c),
+            op: Gate::MulUnary(c),
             ..Default::default()
         }
     }
@@ -82,7 +95,7 @@ impl Node {
     pub fn open(pid: usize) -> Self {
         Node {
             in_1: Some(pid),
-            op: Gate::OPEN,
+            op: Gate::Open,
             ..Default::default()
         }
     }
@@ -95,9 +108,9 @@ impl Node {
     }
 }
 
-// Converts an array of boolean values, representing the
-// input of Alice or Bob, into input nodes, to be used in
-// the boolean circuit.
+/// Converts an array of boolean values, representing the
+/// input of Alice or Bob, into input nodes, to be used in
+/// the boolean circuit.
 pub fn as_nodes(arr: [BigUint; 3]) -> [Node; 3] {
     // Sample random bits
     let mut buf = [0];
