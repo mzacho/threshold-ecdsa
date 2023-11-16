@@ -19,7 +19,7 @@ fn main() {
     let (in_alice, in_bob) = str_to_nodes(&x, &y);
 
     // Initialize circuit
-    let mut g: Circuit = init_circuit(in_alice, in_bob);
+    let mut g: Circuit = blood_type_compatability_circuit(in_alice, in_bob);
     g.transform_and_gates();
 
     // Evaluate circuit
@@ -33,7 +33,7 @@ fn main() {
     print!("---------------------------------------------------\n");
 }
 
-fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
+fn blood_type_compatability_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
     let mut g: Circuit = Circuit { nodes: vec![] };
 
     // input gates
@@ -91,6 +91,8 @@ fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
     let _ = push_node(&mut g, and_xor2);
     g
 }
+
+
 
 // -------------- parsing inputs
 
