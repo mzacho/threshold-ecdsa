@@ -9,6 +9,7 @@ use crate::shares::{Shares, Nat};
 mod circuit;
 mod node;
 mod shares;
+mod groups;
 
 fn main() {
     // Inputs
@@ -92,6 +93,10 @@ fn blood_type_compatability_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> C
     g
 }
 
+fn schnorr_circuit(sk: Shares, gs: GroupSpec) -> Circuit {
+    let g: Circuit = Circuit { nodes: vec![] };
+    g
+}
 
 
 // -------------- parsing inputs
