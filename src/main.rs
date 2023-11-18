@@ -1,10 +1,10 @@
 use circuit::push_node;
 use node::{as_nodes, Const, Node};
-use num_traits::FromPrimitive;
 use std::env;
 
 use crate::circuit::Circuit;
 use crate::shares::{Shares, Nat};
+use crate::groups::GroupSpec;
 
 mod circuit;
 mod node;
@@ -95,6 +95,8 @@ fn blood_type_compatability_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> C
 
 fn schnorr_circuit(sk: Shares, gs: GroupSpec) -> Circuit {
     let g: Circuit = Circuit { nodes: vec![] };
+    let _ = sk;
+    let _ = gs;
     g
 }
 
@@ -177,9 +179,6 @@ fn str_to_nodes(x: &str, y: &str) -> ([Node; 3], [Node; 3]) {
 
 #[cfg(test)]
 mod tests {
-    use num_integer::Integer;
-    use num_traits::{One, Zero};
-
     use crate::circuit::{deal_rands, Rands};
     use crate::shares::M;
 
@@ -249,16 +248,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 
@@ -281,16 +280,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 
@@ -318,16 +317,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 
@@ -355,16 +354,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 
@@ -394,16 +393,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 

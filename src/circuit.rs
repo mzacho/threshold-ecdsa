@@ -1,9 +1,10 @@
-use num_bigint::RandBigInt;
-use num_integer::Integer;
 use std::collections::HashMap;
 
+use crypto_bigint::rand_core::OsRng;
+use crypto_bigint::{NonZero, RandomMod};
+
 use crate::node::{Const, Gate, Node, NodeId};
-use crate::shares::{Shares, M, Nat};
+use crate::shares::{Shares, M, Nat, mul_mod};
 
 /// `Circuit` represents the circuit used in the BeDOZa protocol for
 /// passively secure two-party computation.
@@ -96,7 +97,7 @@ impl Circuit {
             } else {
                 panic!("expected parent id on AddUnary gate")
             }
-            
+
         }
         self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
@@ -130,7 +131,7 @@ impl Circuit {
             Const::AND(id1, id2) => match (e.get(&id1), e.get(&id2)) {
                 (Some(const_value_1), Some(const_value_2)) => {
                     // Compute m - (e * d) mod m
-                    &M.clone() - (const_value_1.clone() * const_value_2.clone()).mod_floor(&M)
+                    M.sub_mod(&mul_mod(const_value_1, const_value_2), &M)
             },
                 (_, _) => panic!("could nok look up const vars for and"),
             },
@@ -269,12 +270,15 @@ pub struct Rands {
 pub fn deal_rands() -> Rands {
     let mut rng = rand::thread_rng();
 
+    // TODO: Use M as NonZero modulus
+    let m = NonZero::new(Nat::from_u64(42)).unwrap();
+
     // Pick random elements from from Zm
-    let ux: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let uy: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let vx: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let vy: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let wx: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let ux: Nat = Nat::random_mod(&mut OsRng, &m);
+    let uy: Nat = Nat::random_mod(&mut OsRng, &m);
+    let vx: Nat = Nat::random_mod(&mut OsRng, &m);
+    let vy: Nat = Nat::random_mod(&mut OsRng, &m);
+    let wx: Nat = Nat::random_mod(&mut OsRng, &m);
 
     let u: Shares = Shares::new(ux.clone(), uy.clone());
     let v: Shares = Shares::new(vx.clone(), vy.clone());
