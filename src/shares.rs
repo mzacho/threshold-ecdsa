@@ -67,7 +67,7 @@ impl Mul<Nat> for Shares {
     type Output = Self;
 
     fn mul(self, rhs: Nat) -> Self::Output {
-        Shares::new(self.x.mul_mod(&rhs, &M), self.y * rhs)
+        Shares::new(mul_mod(&self.x, &rhs), mul_mod(&self.y , &rhs))
     }
 }
 
@@ -82,8 +82,8 @@ impl Mul<Nat> for Shares {
 impl Default for Shares {
     fn default() -> Self {
         Shares {
-            x: Nat::new(Nat::ONE),
-            y: Nat::new(Nat::ONE),
+            x: Nat::new(Nat::ONE.into()),
+            y: Nat::new(Nat::ONE.into()),
         }
     }
 }
@@ -98,7 +98,6 @@ mod test {
     /// Precondition: 0 <= c < M
     pub fn create_share(c: &Nat) -> Shares {
         assert!(c < &M);
-        let mut rng = rand::thread_rng();
 
         // Pick random from Zm
         // TODO: Use M as NonZero modulus
@@ -116,7 +115,7 @@ mod test {
 
     #[test]
     fn test_shares_create_share() {
-        let x = Nat::new(Nat::ONE);
+        let x = Nat::new(Nat::ONE.into());
         let shares = create_share(&x);
 
         assert_eq!(shares.open(), x);
@@ -148,6 +147,6 @@ mod test {
         let y = Nat::from(0b1111u32).add_mod(&Nat::ONE, &M);
 
         let mul_share_constant = shares1 * y.clone();
-        assert_eq!(mul_share_constant.open(), x1.mul_mod(&y, &M));
+        assert_eq!(mul_share_constant.open(), mul_mod(&y, &x1));
     }
 }

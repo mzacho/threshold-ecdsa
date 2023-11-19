@@ -268,7 +268,7 @@ pub struct Rands {
 /// Is does so by choosing random values in Zm for ux, uy, vx, vy and wx,
 /// and computes wy as (((ux + uy) * (vx + vy)) mod m - wx) mod m
 pub fn deal_rands() -> Rands {
-    let mut rng = rand::thread_rng();
+
 
     // TODO: Use M as NonZero modulus
     let m = NonZero::new(Nat::from_u64(42)).unwrap();
@@ -284,17 +284,17 @@ pub fn deal_rands() -> Rands {
     let v: Shares = Shares::new(vx.clone(), vy.clone());
 
     // Compute u * v mod m
-    let k1 = ux.clone() * vx.clone();
-    let k2 = ux * vy.clone();
-    let k3 = uy.clone() * vx;
-    let k4 = uy * vy;
-    let uv = (k1 + k2 + k3 + k4).mod_floor(&M);
+    let k1 = mul_mod(&vx, &ux);
+    let k2 = mul_mod(&ux, &vy);
+    let k3 = mul_mod(&uy, &vx);
+    let k4 = mul_mod(&uy, &vy);
+    let uv = k1.add_mod(&k2.add_mod(&k3.add_mod(&k4, &M), &M), &M);
 
     // Compute (u * v) mod m - wx, avoiding underflow if uv < wx
     let wy = if uv < wx.clone() {
-        &M.clone() + uv - wx.clone()
+        M.clone().add_mod(&uv.sub_mod(&wx, &M), &M)
     } else {
-        uv - wx.clone()
+        uv.sub_mod(&wx, &M)
     };
 
     let w = Shares::new(wx, wy);
