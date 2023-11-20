@@ -269,16 +269,12 @@ pub struct Rands {
 /// and computes wy as (((ux + uy) * (vx + vy)) mod m - wx) mod m
 pub fn deal_rands() -> Rands {
 
-
-    // TODO: Use M as NonZero modulus
-    let m = NonZero::new(Nat::from_u64(42)).unwrap();
-
     // Pick random elements from from Zm
-    let ux: Nat = Nat::random_mod(&mut OsRng, &m);
-    let uy: Nat = Nat::random_mod(&mut OsRng, &m);
-    let vx: Nat = Nat::random_mod(&mut OsRng, &m);
-    let vy: Nat = Nat::random_mod(&mut OsRng, &m);
-    let wx: Nat = Nat::random_mod(&mut OsRng, &m);
+    let ux: Nat = Nat::random_mod(&mut OsRng, &M);
+    let uy: Nat = Nat::random_mod(&mut OsRng, &M);
+    let vx: Nat = Nat::random_mod(&mut OsRng, &M);
+    let vy: Nat = Nat::random_mod(&mut OsRng, &M);
+    let wx: Nat = Nat::random_mod(&mut OsRng, &M);
 
     let u: Shares = Shares::new(ux.clone(), uy.clone());
     let v: Shares = Shares::new(vx.clone(), vy.clone());

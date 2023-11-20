@@ -1,6 +1,6 @@
 use core::ops::{Add, Mul};
 use lazy_static::lazy_static;
-use crypto_bigint::{U64, Limb};
+use crypto_bigint::{U64, Limb, NonZero};
 
 use crate::node::Node;
 
@@ -8,17 +8,19 @@ use crate::node::Node;
 /// integers. Arithmetic operations are checked for overflow at run-time
 pub type Nat = U64;
 
-/// Computes lhs * rhs mod M, assuming that ... TODO
+/// Computes `lhs * rhs mod M` in constant time for the special modulus
+/// `M = MAX+1-c` where `c` is small enough to fit in a single [`Limb`],
+/// see the documentation for crypto_bigint::mul_mod_special.
 pub fn mul_mod(lhs: &Nat, rhs: &Nat) -> Nat {
-
-    lhs.mul_mod_special(rhs, Limb(18446744073709428953))
+    let c = 18446744073709428953;
+    lhs.mul_mod_special(rhs, Limb(c))
 }
 
 // BigUint cannot be declared as a const due to non-const fun-call,
 // the crate lazy_static provides a way to get the same behaviour
 // by allocating it at runtime instead.
 lazy_static! {
-    pub static ref M: Nat = Nat::from(122663_u32);
+    pub static ref M: NonZero<Nat> = NonZero::new(Nat::from(122663_u32)).unwrap();
     // pub static ref M: CNat = Checked::new(Nat::from(153_u32));
 }
 
@@ -90,7 +92,7 @@ impl Default for Shares {
 
 #[cfg(test)]
 mod test {
-    use crypto_bigint::{RandomMod, rand_core::OsRng, NonZero};
+    use crypto_bigint::{RandomMod, rand_core::OsRng};
 
     use super::*;
 
@@ -100,9 +102,7 @@ mod test {
         assert!(c < &M);
 
         // Pick random from Zm
-        // TODO: Use M as NonZero modulus
-        let m = NonZero::new(Nat::from_u64(42)).unwrap();
-        let x: Nat = Nat::random_mod(&mut OsRng, &m);
+        let x: Nat = Nat::random_mod(&mut OsRng, &M);
         // Compute (c - x) mod m, avoiding underflow if c < x
         let y: Nat = if c < &x {
             M.add_mod(c, &M).sub_mod(&x, &M)
