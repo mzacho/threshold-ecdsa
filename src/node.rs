@@ -17,7 +17,7 @@ pub enum Gate {
 pub enum Const {
     Literal(Nat),
     Var(usize),
-    AND(usize, usize),
+    MUL(usize, usize),
 }
 
 pub type NodeId = usize;

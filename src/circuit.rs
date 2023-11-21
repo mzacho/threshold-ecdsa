@@ -128,7 +128,7 @@ impl Circuit {
                     panic!("could not look up const var");
                 }
             }
-            Const::AND(id1, id2) => match (e.get(&id1), e.get(&id2)) {
+            Const::MUL(id1, id2) => match (e.get(&id1), e.get(&id2)) {
                 (Some(const_value_1), Some(const_value_2)) => {
                     // Compute m - (e * d) mod m
                     M.sub_mod(&mul_mod(const_value_1, const_value_2), &M)
@@ -211,7 +211,7 @@ impl Circuit {
                     let sub_mull_yd_ed_id = i + 10;
                     self.insert_node(
                         sub_mull_yd_ed_id,
-                        Node::add_unary(mul_yd_id, Const::AND(oeid, odid)),
+                        Node::add_unary(mul_yd_id, Const::MUL(oeid, odid)),
                     );
 
                     // Insert ADD gate with inputs add_wxe and sub_mul_yd_ed
