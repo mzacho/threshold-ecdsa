@@ -21,7 +21,6 @@ pub fn mul_mod(lhs: &Nat, rhs: &Nat) -> Nat {
 // by allocating it at runtime instead.
 lazy_static! {
     pub static ref M: NonZero<Nat> = NonZero::new(Nat::from(122663_u32)).unwrap();
-    // pub static ref M: CNat = Checked::new(Nat::from(153_u32));
 }
 
 /// An additive share [s] = (x, y) where x + y mod M = s
