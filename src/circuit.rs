@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
 use crypto_bigint::rand_core::OsRng;
-use crypto_bigint::RandomMod;
+use crypto_bigint::{RandomMod, NonZero};
 
-use crate::nat::{mul_mod, Nat, M};
+use crate::nat::{mul_mod, Nat};
 use crate::node::{Const, Gate, Node, NodeId};
 use crate::shares::Shares;
 
@@ -15,13 +15,23 @@ use crate::shares::Shares;
 #[derive(Debug)]
 pub struct Circuit {
     pub nodes: Vec<Node>,
+    pub modulus: NonZero<Nat>,
 }
 
 /// Env is a mapping from node ids to openings of the secret
 /// flowing out of that node. Its used to lookup variables
 /// referred to by constant gates (in contrast to literals
 /// hard-coded into the constant gates).
-pub type Env = HashMap<NodeId, Nat>;
+pub struct Env<'a> {
+   env: HashMap<NodeId, Nat>,
+   modulus: &'a Nat,
+}
+
+impl<'a> Env<'a> {
+    pub fn insert(&mut self, key: NodeId, val: Nat) {
+        self.env.insert(key, val);
+    }
+}
 
 impl Circuit {
     /// Evaluates the circuit and returns the shares of the last node
@@ -29,7 +39,7 @@ impl Circuit {
     /// It does so by iterating over all nodes, and propagating values from
     /// parents to children with respect to the operation of the current node.
     pub fn eval(self) -> Shares {
-        let mut env: Env = HashMap::new();
+        let mut env = Env{ env: HashMap::new(), modulus: &self.modulus };
 
         let len = self.nodes.len();
         for id in 0..len {
@@ -120,16 +130,16 @@ impl Circuit {
         match c {
             Const::Literal(b) => b.clone(),
             Const::Var(id) => {
-                if let Some(const_value) = e.get(&id) {
+                if let Some(const_value) = e.env.get(&id) {
                     const_value.clone()
                 } else {
                     panic!("could not look up const var");
                 }
             }
-            Const::MUL(id1, id2) => match (e.get(&id1), e.get(&id2)) {
+            Const::MUL(id1, id2) => match (e.env.get(&id1), e.env.get(&id2)) {
                 (Some(const_value_1), Some(const_value_2)) => {
                     // Compute m - (e * d) mod m
-                    M.sub_mod(&mul_mod(const_value_1, const_value_2, &M), &M)
+                    e.modulus.sub_mod(&mul_mod(const_value_1, const_value_2, &e.modulus), &e.modulus)
                 }
                 (_, _) => panic!("could nok look up const vars for and"),
             },
@@ -157,7 +167,7 @@ impl Circuit {
             let node = &self.nodes[i];
             match node.op {
                 Gate::Mul => {
-                    let Rands { u, v, w } = deal_rands();
+                    let Rands { u, v, w } = deal_rands(&self.modulus);
                     let pid1 = node.in_1.unwrap();
                     let pid2 = node.in_2.unwrap();
 
@@ -265,32 +275,32 @@ pub struct Rands {
 ///
 /// Is does so by choosing random values in Zm for ux, uy, vx, vy and wx,
 /// and computes wy as (((ux + uy) * (vx + vy)) mod m - wx) mod m
-pub fn deal_rands() -> Rands {
+pub fn deal_rands(modulus: &NonZero<Nat>) -> Rands {
     // Pick random elements from from Zm
-    let ux: Nat = Nat::random_mod(&mut OsRng, &M);
-    let uy: Nat = Nat::random_mod(&mut OsRng, &M);
-    let vx: Nat = Nat::random_mod(&mut OsRng, &M);
-    let vy: Nat = Nat::random_mod(&mut OsRng, &M);
-    let wx: Nat = Nat::random_mod(&mut OsRng, &M);
+    let ux: Nat = Nat::random_mod(&mut OsRng, &modulus);
+    let uy: Nat = Nat::random_mod(&mut OsRng, &modulus);
+    let vx: Nat = Nat::random_mod(&mut OsRng, &modulus);
+    let vy: Nat = Nat::random_mod(&mut OsRng, &modulus);
+    let wx: Nat = Nat::random_mod(&mut OsRng, &modulus);
 
-    let u: Shares = Shares::from(ux.clone(), uy.clone());
-    let v: Shares = Shares::from(vx.clone(), vy.clone());
+    let u: Shares = Shares::from(ux.clone(), uy.clone(), modulus.clone());
+    let v: Shares = Shares::from(vx.clone(), vy.clone(), modulus.clone());
 
     // Compute u * v mod m
-    let k1 = mul_mod(&vx, &ux, &M);
-    let k2 = mul_mod(&ux, &vy, &M);
-    let k3 = mul_mod(&uy, &vx, &M);
-    let k4 = mul_mod(&uy, &vy, &M);
-    let uv = k1.add_mod(&k2.add_mod(&k3.add_mod(&k4, &M), &M), &M);
+    let k1 = mul_mod(&vx, &ux, &modulus);
+    let k2 = mul_mod(&ux, &vy, &modulus);
+    let k3 = mul_mod(&uy, &vx, &modulus);
+    let k4 = mul_mod(&uy, &vy, &modulus);
+    let uv = k1.add_mod(&k2.add_mod(&k3.add_mod(&k4, &modulus), &modulus), &modulus);
 
     // Compute (u * v) mod m - wx, avoiding underflow if uv < wx
     let wy = if uv < wx.clone() {
-        M.clone().add_mod(&uv.sub_mod(&wx, &M), &M)
+        modulus.clone().add_mod(&uv.sub_mod(&wx, &modulus), &modulus)
     } else {
-        uv.sub_mod(&wx, &M)
+        uv.sub_mod(&wx, &modulus)
     };
 
-    let w = Shares::from(wx, wy);
+    let w = Shares::from(wx, wy, modulus.clone());
     Rands { u, v, w }
 }
 

@@ -1,4 +1,4 @@
-use crypto_bigint::{AddMod, Encoding};
+use crypto_bigint::Encoding;
 use sha256_rs::sha256;
 
 use crate::{
@@ -10,7 +10,8 @@ use crate::{
 };
 
 pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
-    let mut g: Circuit = Circuit { nodes: vec![] };
+    assert!(r.m == sk.m);
+    let mut g: Circuit = Circuit { nodes: vec![], modulus: r.m };
 
     let in_sk = Node::in_(sk);
     let in_sk_id = push_node(&mut g, in_sk);
@@ -34,7 +35,7 @@ pub fn compute_e(message: Nat, group: GroupSpec) -> Nat {
     let c = pow_mod(&group.alpha, &r1.add_mod(&r2, &group.q), &group.q);
 
     let c_bytes = c.to_be_bytes();
-    let c_m_bytes = [c_bytes, m.to_be_bytes()].concat();
+    let c_m_bytes = [c_bytes, message.to_be_bytes()].concat();
 
     let e = Nat::from_be_bytes(sha256(&c_m_bytes));
 

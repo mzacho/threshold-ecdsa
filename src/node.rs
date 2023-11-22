@@ -1,4 +1,3 @@
-use getrandom::getrandom;
 use std::cell::RefCell;
 
 use crate::{nat::Nat, shares::Shares};
@@ -104,37 +103,4 @@ impl Node {
             ..Node::default()
         }
     }
-}
-
-/// Converts an array of boolean values, representing the
-/// input of Alice or Bob, into input nodes, to be used in
-/// the boolean circuit.
-pub fn as_nodes(arr: [Nat; 3]) -> [Node; 3] {
-    // Sample random bits
-    let mut buf = [0];
-    if let Err(e) = getrandom(&mut buf) {
-        panic!("{e}");
-    }
-
-    let nodes = [Node::default(), Node::default(), Node::default()];
-
-    for (i, b) in arr.iter().enumerate() {
-        // Make new secret share of b
-        //
-        // First sample a random bit
-
-        let r: Nat = if (buf[0] >> i) % 2 != 0 {
-            Nat::ONE
-        } else {
-            Nat::ZERO
-        };
-
-        // Then assign Alices share to r XOR b
-        // and Bobs share to r
-
-        let s = Shares::from(r.clone() ^ b, r);
-
-        *nodes[i].value.borrow_mut() = Some(s);
-    }
-    nodes
 }

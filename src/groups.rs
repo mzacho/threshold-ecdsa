@@ -1,6 +1,6 @@
 use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
 
-use crate::nat::{Nat, G, M, P};
+use crate::nat::Nat;
 
 /// A specification of the subgroup from Zp of prime order q,
 /// where p is a safe prime with associated Sofie Germain prime q
@@ -19,9 +19,9 @@ impl GroupSpec {
     /// i.e. k is the bitsize of q = M
     pub fn new() -> GroupSpec {
         GroupSpec {
-            p: P.clone(),
-            q: M.clone(),
-            alpha: G.clone(),
+            p: NonZero::new(Nat::from(27013537258668108287_u128)).unwrap(),
+            q: NonZero::new(Nat::from(13506768629334054143_u64)).unwrap(),
+            alpha: Nat::from(16496305264446614492_u64),
         }
     }
 
