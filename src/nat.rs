@@ -6,7 +6,7 @@ use lazy_static::lazy_static;
 
 /// Natural numbers represented as cryptographically safe big unsigned
 /// integers. Arithmetic operations are checked for overflow at run-time
-pub type Nat = U256; // TODO: Use U256
+pub type Nat = U256; 
 
 /// Computes `lhs * rhs mod modulus`
 pub fn mul_mod(lhs: &Nat, rhs: &Nat, modulus: &Nat) -> Nat {
