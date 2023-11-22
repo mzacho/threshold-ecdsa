@@ -273,8 +273,8 @@ pub fn deal_rands() -> Rands {
     let vy: Nat = Nat::random_mod(&mut OsRng, &M);
     let wx: Nat = Nat::random_mod(&mut OsRng, &M);
 
-    let u: Shares = Shares::from(ux.clone(), uy.clone());
-    let v: Shares = Shares::from(vx.clone(), vy.clone());
+    let u: Shares = Shares::from(ux.clone(), uy.clone(), *M);
+    let v: Shares = Shares::from(vx.clone(), vy.clone(), *M);
 
     // Compute u * v mod m
     let k1 = mul_mod(&vx, &ux, &M);
@@ -290,11 +290,27 @@ pub fn deal_rands() -> Rands {
         uv.sub_mod(&wx, &M)
     };
 
-    let w = Shares::from(wx, wy);
+    let w = Shares::from(wx, wy, *M);
     Rands { u, v, w }
 }
 
 pub fn push_node(c: &mut Circuit, n: Node) -> NodeId {
     c.nodes.push(n);
     c.nodes.len() - 1
+}
+
+// Tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_deal_rands() {
+        for _ in 0..100 {
+            // deal_rands is indeterministic, so run it a lot of times ...
+            let Rands { u, v, w } = deal_rands();
+            assert_eq!(mul_mod(&u.open(), &v.open(), &M), w.open());
+        }
+    }
 }

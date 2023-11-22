@@ -1,7 +1,11 @@
+use crypto_bigint::AddMod;
 use getrandom::getrandom;
 use std::cell::RefCell;
 
-use crate::{nat::Nat, shares::Shares};
+use crate::{
+    nat::{Nat, M},
+    shares::Shares,
+};
 
 #[derive(Debug, Clone)]
 pub enum Gate {
@@ -132,9 +136,217 @@ pub fn as_nodes(arr: [Nat; 3]) -> [Node; 3] {
         // Then assign Alices share to r XOR b
         // and Bobs share to r
 
-        let s = Shares::from(r.clone() ^ b, r);
+        let s = Shares::from(r.clone().add_mod(b, &M), r, *M);
 
         *nodes[i].value.borrow_mut() = Some(s);
     }
     nodes
+}
+
+// Tests
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        circuit::{push_node, Circuit},
+        nat::{mul_mod, M},
+    };
+
+    use super::*;
+
+    fn single_mul_gate(x: Node, y: Node) -> Circuit {
+        let mut g: Circuit = Circuit { nodes: vec![] };
+
+        let xa_id = push_node(&mut g, x);
+        let ya_id = push_node(&mut g, y);
+
+        let and = Node::mul(xa_id, ya_id);
+        let _ = push_node(&mut g, and);
+        g
+    }
+
+    fn and_xor_unary_one(x: Node, y: Node) -> Circuit {
+        let mut g: Circuit = Circuit { nodes: vec![] };
+
+        let xa_id = push_node(&mut g, x);
+        let ya_id = push_node(&mut g, y);
+
+        let and = Node::mul(xa_id, ya_id);
+        let and_id = push_node(&mut g, and);
+
+        let xor = Node::add_unary(and_id, Const::Literal(Nat::from(1u32)));
+        push_node(&mut g, xor);
+        g
+    }
+
+    fn and_and(x: Node, y: Node) -> Circuit {
+        let mut g: Circuit = Circuit { nodes: vec![] };
+
+        let xa_id = push_node(&mut g, x);
+        let ya_id = push_node(&mut g, y);
+
+        let and = Node::mul(xa_id, ya_id);
+        let and_id = push_node(&mut g, and);
+
+        let and = Node::mul(and_id, ya_id);
+        let _ = push_node(&mut g, and);
+
+        //let xor = Node::xor_unary(and_id, Const::Literal(One::one()));
+        //push_node(&mut g, xor);
+        g
+    }
+
+    fn x_plus_y_times_x_plus_1(x: Node, y: Node) -> Circuit {
+        let mut g: Circuit = Circuit { nodes: vec![] };
+
+        let xa_id = push_node(&mut g, x);
+        let ya_id = push_node(&mut g, y);
+
+        let xor = Node::add(xa_id, ya_id);
+        let xor_id = push_node(&mut g, xor);
+
+        let and = Node::mul(xa_id, xor_id);
+        let and_id = push_node(&mut g, and);
+
+        let xor = Node::add_unary(and_id, Const::Literal(Nat::from(1u32)));
+        push_node(&mut g, xor);
+        g
+    }
+
+    #[test]
+    fn test_transform_and_gates1() {
+        // input gates
+
+        for _ in 0..100 {
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
+                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+
+                            let mut g: Circuit =
+                                single_mul_gate(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(res.open(), mul_mod(&x.open(), &y.open(), &M));
+                        }
+                    });
+                });
+            });
+        }
+    }
+
+    #[test]
+    fn test_transform_and_gates2() {
+        // input gates
+
+        for _ in 0..100 {
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
+                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+
+                            let mut g =
+                                and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(
+                                res.open(),
+                                mul_mod(&x.open(), &y.open(), &M).add_mod(&Nat::from(1u32), &M)
+                            );
+                        }
+                    });
+                });
+            });
+        }
+    }
+
+    #[test]
+    fn test_transform_and_gates3() {
+        // input gates
+
+        for _ in 0..100 {
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
+                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+
+                            let mut g =
+                                x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(
+                                res.open(),
+                                (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open(), &M))
+                                    .add_mod(&Nat::from(1_u32), &M)
+                            );
+                        }
+                    });
+                });
+            });
+        }
+    }
+
+    #[test]
+    fn test_transform_and_gates4() {
+        // input gates
+
+        for _ in 0..100 {
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
+                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+
+                            let mut g =
+                                x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(
+                                res.open(),
+                                (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open(), &M)
+                                    .add_mod(&Nat::from(1u32), &M))
+                            );
+                        }
+                    });
+                });
+            });
+        }
+    }
+
+    #[test]
+    fn test_transform_and_gates5() {
+        // input gates
+
+        for _ in 0..100 {
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
+                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+
+                            let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(
+                                res.open(),
+                                (mul_mod(
+                                    &mul_mod(&x.open(), &y.clone().open(), &M),
+                                    &y.open(),
+                                    &M
+                                ))
+                            );
+                        }
+                    });
+                });
+            });
+        }
+    }
 }
