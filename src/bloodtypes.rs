@@ -1,7 +1,5 @@
 use std::env;
 
-use crypto_bigint::NonZero;
-
 use crate::{
     circuit::{push_node, Circuit},
     nat::{Nat, TWO},
@@ -21,7 +19,7 @@ pub fn run_blood_type(x: String, y: String, debug: bool) -> Nat {
     g.transform_and_gates();
 
     // Evaluate circuit
-    let Shares { x, y, modulus } = g.eval();
+    let Shares { x, y, modulus: _ } = g.eval();
 
     let result = x.add_mod(&y, &TWO);
 

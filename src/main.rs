@@ -1,6 +1,5 @@
 use std::env::args;
 
-mod bloodtypes;
 mod circuit;
 mod groups;
 mod nat;
@@ -8,23 +7,21 @@ mod node;
 mod schnorr;
 mod shares;
 
-const BT: &str = "bloodtype";
-const SN: &str = "schnorr";
+const ECDSA: &str = "ecdsa";
+const SCHNORR: &str = "schnorr";
 
-const AVAILABLE_CMDS: [&str; 2] = [BT, SN];
+const AVAILABLE_CMDS: [&str; 2] = [ECDSA, SCHNORR];
 
 fn main() {
     let cmd = read_command();
 
     match cmd.as_str() {
-        BT => {
-            let (x, y) = bloodtypes::read_args_bloodtypes(args());
-            bloodtypes::run_blood_type(x, y, true);
-        }
-        SN => {
+        SCHNORR => {
             let m = schnorr::read_args_message(args());
             schnorr::run_schnorr(m);
         }
+
+        ECDSA => todo!("implement ECDSA"),
         _ => panic!(
             "Use one of the following commands: \"{cmds}\"",
             cmds = AVAILABLE_CMDS.join(", ")
