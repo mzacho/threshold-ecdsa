@@ -32,6 +32,8 @@ lazy_static! {
     /// Hard coded generator for the group (G)
     pub static ref G: Nat = Nat::from(16496305264446614492_u64);
 
+    pub static ref TWO: NonZero<Nat> = NonZero::new(Nat::from(2_u8)).unwrap();
+
     // pub static ref M: CNat = Checked::new(Nat::from(153_u32));
 }
 

@@ -1,4 +1,4 @@
-use crypto_bigint::AddMod;
+use crypto_bigint::{AddMod, NonZero};
 use getrandom::getrandom;
 use std::cell::RefCell;
 
@@ -113,7 +113,7 @@ impl Node {
 /// Converts an array of boolean values, representing the
 /// input of Alice or Bob, into input nodes, to be used in
 /// the boolean circuit.
-pub fn as_nodes(arr: [Nat; 3]) -> [Node; 3] {
+pub fn as_nodes(arr: [Nat; 3], modulus: NonZero<Nat>) -> [Node; 3] {
     // Sample random bits
     let mut buf = [0];
     if let Err(e) = getrandom(&mut buf) {
@@ -136,7 +136,7 @@ pub fn as_nodes(arr: [Nat; 3]) -> [Node; 3] {
         // Then assign Alices share to r XOR b
         // and Bobs share to r
 
-        let s = Shares::from(r.clone().add_mod(b, &M), r, *M);
+        let s = Shares::from(r.clone().add_mod(b, &M), r, modulus);
 
         *nodes[i].value.borrow_mut() = Some(s);
     }

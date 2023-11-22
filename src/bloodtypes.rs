@@ -4,7 +4,7 @@ use crypto_bigint::NonZero;
 
 use crate::{
     circuit::{push_node, Circuit},
-    nat::Nat,
+    nat::{Nat, TWO},
     node::{as_nodes, Const, Node},
     shares::Shares,
 };
@@ -12,8 +12,6 @@ use crate::{
 pub fn run_blood_type(x: String, y: String, debug: bool) -> Nat {
     // Inputs
     print!("Running BeDOZa on inputs: x={x} y={y}\n");
-
-    let mod2 = NonZero::new(Nat::from(2_u8)).unwrap();
 
     // Parse inputs
     let (in_alice, in_bob) = str_to_nodes(&x, &y);
@@ -23,13 +21,9 @@ pub fn run_blood_type(x: String, y: String, debug: bool) -> Nat {
     g.transform_and_gates();
 
     // Evaluate circuit
-    let Shares {
-        x,
-        y,
-        modulus: mod2,
-    } = g.eval();
+    let Shares { x, y, modulus } = g.eval();
 
-    let result = x.add_mod(&y, &Nat::from(2_u8));
+    let result = x.add_mod(&y, &TWO);
 
     if debug {
         print!("---------------------------------------------------\n");
@@ -167,8 +161,8 @@ fn as_bool_arr(n: u8) -> [Nat; 3] {
 pub fn str_to_nodes(x: &str, y: &str) -> ([Node; 3], [Node; 3]) {
     let bt_alice = as_bool_arr(parse_blood_type(x));
     let bt_bob = as_bool_arr(parse_blood_type(y));
-    let in_alice = as_nodes(bt_alice);
-    let in_bob = as_nodes(bt_bob);
+    let in_alice = as_nodes(bt_alice, *TWO);
+    let in_bob = as_nodes(bt_bob, *TWO);
     (in_alice, in_bob)
 }
 
