@@ -26,8 +26,7 @@ pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
     g
 }
 
-pub fn generate_e_from_message(m: Nat) -> Nat {
-    let group = GroupSpec::new();
+pub fn generate_e_from_message(m: Nat, group: GroupSpec) -> Nat {
 
     let r1 = group.rand_exp();
     let r2 = group.rand_exp();
