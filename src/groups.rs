@@ -9,7 +9,7 @@ pub struct GroupSpec {
     pub p: NonZero<Nat>,
     pub q: NonZero<Nat>,
     /// Generator of the group, ord(g) = q
-    pub g: Nat,
+    pub alpha: Nat,
 }
 
 impl GroupSpec {
@@ -21,7 +21,7 @@ impl GroupSpec {
         GroupSpec {
             p: P.clone(),
             q: M.clone(),
-            g: G.clone(),
+            alpha: G.clone(),
         }
     }
 

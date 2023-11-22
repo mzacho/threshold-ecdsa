@@ -1,7 +1,10 @@
+use crypto_bigint::{AddMod, Encoding};
+use sha256_rs::sha256;
+
 use crate::{
     circuit::{push_node, Circuit},
     groups::GroupSpec,
-    nat::Nat,
+    nat::{pow_mod, Nat},
     node::{Const, Node},
     shares::Shares,
 };
@@ -23,11 +26,18 @@ pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
     g
 }
 
-pub fn generate_e_from_message(message: Nat, q: Nat) {
+pub fn generate_e_from_message(m: Nat) -> Nat {
     let group = GroupSpec::new();
 
     let r1 = group.rand_exp();
     let r2 = group.rand_exp();
 
-    todo!("Finish this")
+    let c = pow_mod(&group.alpha, &r1.add_mod(&r2, &group.q), &group.q);
+
+    let c_bytes = c.to_be_bytes();
+    let c_m_bytes = [c_bytes, m.to_be_bytes()].concat();
+
+    let e = Nat::from_be_bytes(sha256(&c_m_bytes));
+
+    e
 }

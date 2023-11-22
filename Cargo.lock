@@ -78,6 +78,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "sha256-rs"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dbc32b728c15a030706df05ea9f0964a6912e527785b796fb1e2c4a5c74bac32"
+
+[[package]]
 name = "subtle"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -91,6 +97,7 @@ dependencies = [
  "getrandom",
  "lazy_static",
  "rand",
+ "sha256-rs",
 ]
 
 [[package]]
