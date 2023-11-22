@@ -1,32 +1,7 @@
 use core::ops::{Add, Mul};
-use lazy_static::lazy_static;
-use crypto_bigint::{U64, Limb, NonZero, RandomMod, rand_core::OsRng};
+use crypto_bigint::{ rand_core::OsRng, RandomMod};
 
-use crate::node::Node;
-
-/// Natural numbers represented as cryptographically safe big unsigned
-/// integers. Arithmetic operations are checked for overflow at run-time
-pub type Nat = U64;
-
-/// Computes `lhs * rhs mod M` in constant time for the special modulus
-/// `M = MAX+1-c` where `c` is small enough to fit in a single [`Limb`],
-/// see the documentation for crypto_bigint::mul_mod_special.
-pub fn mul_mod(lhs: &Nat, rhs: &Nat) -> Nat {
-    let c = 18446744073709428953;
-    lhs.mul_mod_special(rhs, Limb(c))
-}
-
-pub fn exp_mod(base: &Nat, exponent: &Nat, modulus: &Nat) -> Nat {
-
-}
-
-// BigUint cannot be declared as a const due to non-const fun-call,
-// the crate lazy_static provides a way to get the same behaviour
-// by allocating it at runtime instead.
-lazy_static! {
-    pub static ref M: NonZero<Nat> = NonZero::new(Nat::from(122663_u32)).unwrap();
-    // pub static ref M: CNat = Checked::new(Nat::from(153_u32));
-}
+use crate::{nat::{Nat, M, mul_mod}, node::Node};
 
 /// An additive share [s] = (x, y) where x + y mod M = s
 #[derive(Debug, Clone)]
@@ -73,8 +48,7 @@ impl Add for Shares {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Shares::from(self.x.add_mod(&rhs.x, &M),
-                    self.y.add_mod(&rhs.y, &M))
+        Shares::from(self.x.add_mod(&rhs.x, &M), self.y.add_mod(&rhs.y, &M))
     }
 }
 
@@ -90,7 +64,7 @@ impl Mul<Nat> for Shares {
     type Output = Self;
 
     fn mul(self, rhs: Nat) -> Self::Output {
-        Shares::from(mul_mod(&self.x, &rhs), mul_mod(&self.y , &rhs))
+        Shares::from(mul_mod(&self.x, &rhs, &M), mul_mod(&self.y, &rhs, &M))
     }
 }
 
@@ -114,6 +88,7 @@ impl Default for Shares {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::nat::mul_mod;
 
     #[test]
     fn test_shares_new() {
@@ -130,7 +105,6 @@ mod test {
 
         let y = Nat::from(120_u32);
         let s2 = Shares::new(&y);
-
 
         let s3 = s1.clone() + x.clone();
         assert_eq!(s3.open(), x.add_mod(&x, &M));
@@ -149,6 +123,6 @@ mod test {
         let y = Nat::from(0b1111u32).add_mod(&Nat::ONE, &M);
 
         let mul_share_constant = shares1 * y.clone();
-        assert_eq!(mul_share_constant.open(), mul_mod(&y, &x1));
+        assert_eq!(mul_share_constant.open(), mul_mod(&y, &x1, &M));
     }
 }
