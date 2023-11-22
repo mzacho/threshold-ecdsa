@@ -1,7 +1,10 @@
 use core::ops::{Add, Mul};
-use crypto_bigint::{ rand_core::OsRng, RandomMod, NonZero};
+use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
 
-use crate::{nat::{Nat, mul_mod}, node::Node};
+use crate::{
+    nat::{mul_mod, Nat},
+    node::Node,
+};
 
 /// An additive share [s] = (x, y) where x + y mod m = s
 #[derive(Debug, Clone)]
@@ -50,7 +53,11 @@ impl Add for Shares {
 
     fn add(self, rhs: Self) -> Self::Output {
         assert!(self.m == rhs.m);
-        Shares::from(self.x.add_mod(&rhs.x, &self.m), self.y.add_mod(&rhs.y, &self.m), self.m)
+        Shares::from(
+            self.x.add_mod(&rhs.x, &self.m),
+            self.y.add_mod(&rhs.y, &self.m),
+            self.m,
+        )
     }
 }
 
@@ -66,7 +73,11 @@ impl Mul<Nat> for Shares {
     type Output = Self;
 
     fn mul(self, rhs: Nat) -> Self::Output {
-        Shares::from(mul_mod(&self.x, &rhs, &self.m), mul_mod(&self.y, &rhs, &self.m), self.m)
+        Shares::from(
+            mul_mod(&self.x, &rhs, &self.m),
+            mul_mod(&self.y, &rhs, &self.m),
+            self.m,
+        )
     }
 }
 

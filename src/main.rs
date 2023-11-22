@@ -38,7 +38,6 @@ fn read_args(args: env::Args) -> (String, String) {
     (x, y)
 }
 
-
 // --------------- tests ----------------
 
 #[cfg(test)]
@@ -47,13 +46,19 @@ mod tests {
     use crypto_bigint::NonZero;
 
     use crate::{
-        circuit::{deal_rands, Rands, Circuit, push_node},
-        nat::{mul_mod, Nat}, shares::Shares, groups::GroupSpec, node::{Node, Const},
+        circuit::{deal_rands, push_node, Circuit, Rands},
+        groups::GroupSpec,
+        nat::{mul_mod, Nat},
+        node::{Const, Node},
+        shares::Shares,
     };
 
     fn single_mul_gate(x: Node, y: Node) -> Circuit {
         let modulus = x.value.borrow().as_ref().unwrap().m.clone();
-        let mut g: Circuit = Circuit { nodes: vec![], modulus };
+        let mut g: Circuit = Circuit {
+            nodes: vec![],
+            modulus,
+        };
 
         let xa_id = push_node(&mut g, x);
         let ya_id = push_node(&mut g, y);
@@ -65,7 +70,10 @@ mod tests {
 
     fn and_xor_unary_one(x: Node, y: Node) -> Circuit {
         let modulus = x.value.borrow().as_ref().unwrap().m.clone();
-        let mut g: Circuit = Circuit { nodes: vec![], modulus };
+        let mut g: Circuit = Circuit {
+            nodes: vec![],
+            modulus,
+        };
 
         let xa_id = push_node(&mut g, x);
         let ya_id = push_node(&mut g, y);
@@ -80,7 +88,10 @@ mod tests {
 
     fn and_and(x: Node, y: Node) -> Circuit {
         let modulus = x.value.borrow().as_ref().unwrap().m.clone();
-        let mut g: Circuit = Circuit { nodes: vec![], modulus };
+        let mut g: Circuit = Circuit {
+            nodes: vec![],
+            modulus,
+        };
 
         let xa_id = push_node(&mut g, x);
         let ya_id = push_node(&mut g, y);
@@ -95,7 +106,10 @@ mod tests {
 
     fn x_plus_y_times_x_plus_1(x: Node, y: Node) -> Circuit {
         let modulus = x.value.borrow().as_ref().unwrap().m.clone();
-        let mut g: Circuit = Circuit { nodes: vec![], modulus };
+        let mut g: Circuit = Circuit {
+            nodes: vec![],
+            modulus,
+        };
 
         let xa_id = push_node(&mut g, x);
         let ya_id = push_node(&mut g, y);
@@ -240,7 +254,11 @@ mod tests {
                             let res = g.eval();
                             assert_eq!(
                                 res.open(),
-                                (mul_mod(&mul_mod(&x.open(), &y.clone().open(), &m), &y.open(), &m))
+                                (mul_mod(
+                                    &mul_mod(&x.open(), &y.clone().open(), &m),
+                                    &y.open(),
+                                    &m
+                                ))
                             );
                         }
                     });

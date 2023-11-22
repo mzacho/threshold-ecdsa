@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crypto_bigint::rand_core::OsRng;
-use crypto_bigint::{RandomMod, NonZero};
+use crypto_bigint::{NonZero, RandomMod};
 
 use crate::nat::{mul_mod, Nat};
 use crate::node::{Const, Gate, Node, NodeId};
@@ -23,8 +23,8 @@ pub struct Circuit {
 /// referred to by constant gates (in contrast to literals
 /// hard-coded into the constant gates).
 pub struct Env<'a> {
-   env: HashMap<NodeId, Nat>,
-   modulus: &'a Nat,
+    env: HashMap<NodeId, Nat>,
+    modulus: &'a Nat,
 }
 
 impl<'a> Env<'a> {
@@ -39,7 +39,10 @@ impl Circuit {
     /// It does so by iterating over all nodes, and propagating values from
     /// parents to children with respect to the operation of the current node.
     pub fn eval(self) -> Shares {
-        let mut env = Env{ env: HashMap::new(), modulus: &self.modulus };
+        let mut env = Env {
+            env: HashMap::new(),
+            modulus: &self.modulus,
+        };
 
         let len = self.nodes.len();
         for id in 0..len {
@@ -139,7 +142,10 @@ impl Circuit {
             Const::MUL(id1, id2) => match (e.env.get(&id1), e.env.get(&id2)) {
                 (Some(const_value_1), Some(const_value_2)) => {
                     // Compute m - (e * d) mod m
-                    e.modulus.sub_mod(&mul_mod(const_value_1, const_value_2, &e.modulus), &e.modulus)
+                    e.modulus.sub_mod(
+                        &mul_mod(const_value_1, const_value_2, &e.modulus),
+                        &e.modulus,
+                    )
                 }
                 (_, _) => panic!("could nok look up const vars for and"),
             },
@@ -295,7 +301,9 @@ pub fn deal_rands(modulus: &NonZero<Nat>) -> Rands {
 
     // Compute (u * v) mod m - wx, avoiding underflow if uv < wx
     let wy = if uv < wx.clone() {
-        modulus.clone().add_mod(&uv.sub_mod(&wx, &modulus), &modulus)
+        modulus
+            .clone()
+            .add_mod(&uv.sub_mod(&wx, &modulus), &modulus)
     } else {
         uv.sub_mod(&wx, &modulus)
     };

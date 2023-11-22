@@ -11,7 +11,10 @@ use crate::{
 
 pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
     assert!(r.m == sk.m);
-    let mut g: Circuit = Circuit { nodes: vec![], modulus: r.m };
+    let mut g: Circuit = Circuit {
+        nodes: vec![],
+        modulus: r.m,
+    };
 
     let in_sk = Node::in_(sk);
     let in_sk_id = push_node(&mut g, in_sk);
@@ -28,7 +31,6 @@ pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
 }
 
 pub fn compute_e(message: Nat, group: GroupSpec) -> Nat {
-
     let r1 = group.rand_exp();
     let r2 = group.rand_exp();
 
