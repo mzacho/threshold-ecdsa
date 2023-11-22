@@ -1,12 +1,12 @@
 use crypto_bigint::{
     modular::runtime_mod::{DynResidue, DynResidueParams},
-    NonZero, U64,
+    NonZero, U64, U256,
 };
 use lazy_static::lazy_static;
 
 /// Natural numbers represented as cryptographically safe big unsigned
 /// integers. Arithmetic operations are checked for overflow at run-time
-pub type Nat = U64; // TODO: Use U256
+pub type Nat = U256; // TODO: Use U256
 
 /// Computes `lhs * rhs mod modulus`
 pub fn mul_mod(lhs: &Nat, rhs: &Nat, modulus: &Nat) -> Nat {
@@ -81,5 +81,14 @@ mod test {
             pow_mod(&Nat::from(b), &Nat::from(c), &Nat::from(a)),
             Nat::from(b.pow(c).rem(a))
         );
+    }
+
+    #[test]
+    fn test_large_pow_mod_for_group() {
+        let g = G.clone();
+        let q = M.clone();
+        let p = P.clone();
+
+        assert_eq!(pow_mod(&g, &q, &p), Nat::from(1_u32));
     }
 }
