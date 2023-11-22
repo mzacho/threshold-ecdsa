@@ -1,6 +1,6 @@
 use crypto_bigint::{
     modular::runtime_mod::{DynResidue, DynResidueParams},
-    NonZero, U64, U256,
+    NonZero, U256,
 };
 use lazy_static::lazy_static;
 
@@ -38,8 +38,6 @@ lazy_static! {
 #[cfg(test)]
 mod test {
     use std::ops::Rem;
-
-    use crypto_bigint::MulMod;
 
     use super::*;
 

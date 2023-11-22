@@ -10,3 +10,4 @@ getrandom = { version = "0.2" }
 crypto-bigint = { version = "*", features = ["rand"]}
 rand = "0.8.5"
 lazy_static = "*"
+sha256-rs = "1.0.1"
