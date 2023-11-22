@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crypto_bigint::rand_core::OsRng;
-use crypto_bigint::{NonZero, RandomMod};
+use crypto_bigint::RandomMod;
 
 use crate::node::{Const, Gate, Node, NodeId};
 use crate::shares::{Shares, M, Nat, mul_mod};
@@ -276,8 +276,8 @@ pub fn deal_rands() -> Rands {
     let vy: Nat = Nat::random_mod(&mut OsRng, &M);
     let wx: Nat = Nat::random_mod(&mut OsRng, &M);
 
-    let u: Shares = Shares::new(ux.clone(), uy.clone());
-    let v: Shares = Shares::new(vx.clone(), vy.clone());
+    let u: Shares = Shares::from(ux.clone(), uy.clone());
+    let v: Shares = Shares::from(vx.clone(), vy.clone());
 
     // Compute u * v mod m
     let k1 = mul_mod(&vx, &ux);
@@ -293,7 +293,7 @@ pub fn deal_rands() -> Rands {
         uv.sub_mod(&wx, &M)
     };
 
-    let w = Shares::new(wx, wy);
+    let w = Shares::from(wx, wy);
     Rands { u, v, w }
 }
 

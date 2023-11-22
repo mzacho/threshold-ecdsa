@@ -132,7 +132,7 @@ pub fn as_nodes(arr: [Nat; 3]) -> [Node; 3] {
         // Then assign Alices share to r XOR b
         // and Bobs share to r
 
-        let s = Shares::new(r.clone() ^ b, r);
+        let s = Shares::from(r.clone() ^ b, r);
 
         *nodes[i].value.borrow_mut() = Some(s);
     }

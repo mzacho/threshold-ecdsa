@@ -1,6 +1,6 @@
 use core::ops::{Add, Mul};
 use lazy_static::lazy_static;
-use crypto_bigint::{U64, Limb, NonZero};
+use crypto_bigint::{U64, Limb, NonZero, RandomMod, rand_core::OsRng};
 
 use crate::node::Node;
 
@@ -14,6 +14,10 @@ pub type Nat = U64;
 pub fn mul_mod(lhs: &Nat, rhs: &Nat) -> Nat {
     let c = 18446744073709428953;
     lhs.mul_mod_special(rhs, Limb(c))
+}
+
+pub fn exp_mod(base: &Nat, exponent: &Nat, modulus: &Nat) -> Nat {
+
 }
 
 // BigUint cannot be declared as a const due to non-const fun-call,
@@ -33,7 +37,24 @@ pub struct Shares {
 
 impl Shares {
     /// Instantiate a new share with the given `x` and `y` values
-    pub fn new(x: Nat, y: Nat) -> Self {
+    pub fn from(x: Nat, y: Nat) -> Self {
+        Shares { x, y }
+    }
+
+    /// Create a share of a constant `c`
+    /// Precondition: 0 <= c < M
+    pub fn new(c: &Nat) -> Shares {
+        assert!(c < &M);
+
+        // Pick random from Zm
+        let x: Nat = Nat::random_mod(&mut OsRng, &M);
+        // Compute (c - x) mod m, avoiding underflow if c < x
+        let y: Nat = if c < &x {
+            M.add_mod(c, &M).sub_mod(&x, &M)
+        } else {
+            c.sub_mod(&x, &M)
+        };
+
         Shares { x, y }
     }
 
@@ -52,7 +73,7 @@ impl Add for Shares {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        Shares::new(self.x.add_mod(&rhs.x, &M),
+        Shares::from(self.x.add_mod(&rhs.x, &M),
                     self.y.add_mod(&rhs.y, &M))
     }
 }
@@ -61,7 +82,7 @@ impl Add<Nat> for Shares {
     type Output = Self;
 
     fn add(self, rhs: Nat) -> Self::Output {
-        Shares::new(self.x.add_mod(&rhs, &M), self.y)
+        Shares::from(self.x.add_mod(&rhs, &M), self.y)
     }
 }
 
@@ -69,7 +90,7 @@ impl Mul<Nat> for Shares {
     type Output = Self;
 
     fn mul(self, rhs: Nat) -> Self::Output {
-        Shares::new(mul_mod(&self.x, &rhs), mul_mod(&self.y , &rhs))
+        Shares::from(mul_mod(&self.x, &rhs), mul_mod(&self.y , &rhs))
     }
 }
 
@@ -92,31 +113,12 @@ impl Default for Shares {
 
 #[cfg(test)]
 mod test {
-    use crypto_bigint::{RandomMod, rand_core::OsRng};
-
     use super::*;
 
-    /// Create a share of a constant `c`
-    /// Precondition: 0 <= c < M
-    pub fn create_share(c: &Nat) -> Shares {
-        assert!(c < &M);
-
-        // Pick random from Zm
-        let x: Nat = Nat::random_mod(&mut OsRng, &M);
-        // Compute (c - x) mod m, avoiding underflow if c < x
-        let y: Nat = if c < &x {
-            M.add_mod(c, &M).sub_mod(&x, &M)
-        } else {
-            c.sub_mod(&x, &M)
-        };
-
-        Shares { x, y }
-    }
-
     #[test]
-    fn test_shares_create_share() {
+    fn test_shares_new() {
         let x = Nat::new(Nat::ONE.into());
-        let shares = create_share(&x);
+        let shares = Shares::new(&x);
 
         assert_eq!(shares.open(), x);
     }
@@ -124,10 +126,10 @@ mod test {
     #[test]
     fn test_shares_add() {
         let x = Nat::from(42_u32);
-        let s1 = create_share(&x);
+        let s1 = Shares::new(&x);
 
         let y = Nat::from(120_u32);
-        let s2 = create_share(&y);
+        let s2 = Shares::new(&y);
 
 
         let s3 = s1.clone() + x.clone();
@@ -141,7 +143,7 @@ mod test {
     #[test]
     fn test_shares_mul() {
         let x1 = Nat::from(0b1010u32).add_mod(&Nat::ONE, &M);
-        let shares1 = create_share(&x1);
+        let shares1 = Shares::new(&x1);
         assert_eq!(shares1.clone().open(), x1);
 
         let y = Nat::from(0b1111u32).add_mod(&Nat::ONE, &M);
