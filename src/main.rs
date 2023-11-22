@@ -1,14 +1,15 @@
 use circuit::push_node;
 use node::{as_nodes, Const, Node};
-use num_traits::FromPrimitive;
 use std::env;
 
 use crate::circuit::Circuit;
 use crate::shares::{Shares, Nat};
+use crate::groups::GroupSpec;
 
 mod circuit;
 mod node;
 mod shares;
+mod groups;
 
 fn main() {
     // Inputs
@@ -19,7 +20,7 @@ fn main() {
     let (in_alice, in_bob) = str_to_nodes(&x, &y);
 
     // Initialize circuit
-    let mut g: Circuit = init_circuit(in_alice, in_bob);
+    let mut g: Circuit = blood_type_compatability_circuit(in_alice, in_bob);
     g.transform_and_gates();
 
     // Evaluate circuit
@@ -33,7 +34,7 @@ fn main() {
     print!("---------------------------------------------------\n");
 }
 
-fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
+fn blood_type_compatability_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
     let mut g: Circuit = Circuit { nodes: vec![] };
 
     // input gates
@@ -51,13 +52,13 @@ fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
 
     // first layer
 
-    let xor_xa = Node::add_unary(xa_id, Const::Literal(Nat::from_i8(1).unwrap()));
+    let xor_xa = Node::add_unary(xa_id, Const::Literal(Nat::from_u8(1)));
     let xor_xa_id = push_node(&mut g, xor_xa);
 
-    let xor_xb = Node::add_unary(xb_id, Const::Literal(Nat::from_i8(1).unwrap()));
+    let xor_xb = Node::add_unary(xb_id, Const::Literal(Nat::from_u8(1)));
     let xor_xb_id = push_node(&mut g, xor_xb);
 
-    let xor_xr = Node::add_unary(xr_id, Const::Literal(Nat::from_i8(1).unwrap()));
+    let xor_xr = Node::add_unary(xr_id, Const::Literal(Nat::from_u8(1)));
     let xor_xr_id = push_node(&mut g, xor_xr);
 
     // second layer
@@ -73,13 +74,13 @@ fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
 
     // third layer
 
-    let xor_and_ya = Node::add_unary(and_ya_id, Const::Literal(Nat::from_i8(1).unwrap()));
+    let xor_and_ya = Node::add_unary(and_ya_id, Const::Literal(Nat::from_u8(1)));
     let xor_and_ya_id = push_node(&mut g, xor_and_ya);
 
-    let xor_and_yb = Node::add_unary(and_yb_id, Const::Literal(Nat::from_i8(1).unwrap()));
+    let xor_and_yb = Node::add_unary(and_yb_id, Const::Literal(Nat::from_u8(1)));
     let xor_and_yb_id = push_node(&mut g, xor_and_yb);
 
-    let xor_and_yr = Node::add_unary(and_yr_id, Const::Literal(Nat::from_i8(1).unwrap()));
+    let xor_and_yr = Node::add_unary(and_yr_id, Const::Literal(Nat::from_u8(1)));
     let xor_and_yr_id = push_node(&mut g, xor_and_yr);
 
     // fourth layer
@@ -91,6 +92,14 @@ fn init_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> Circuit {
     let _ = push_node(&mut g, and_xor2);
     g
 }
+
+fn schnorr_circuit(sk: Shares, gs: GroupSpec) -> Circuit {
+    let g: Circuit = Circuit { nodes: vec![] };
+    let _ = sk;
+    let _ = gs;
+    g
+}
+
 
 // -------------- parsing inputs
 
@@ -148,12 +157,12 @@ fn parse_blood_type(s: &str) -> u8 {
 
 fn as_bool_arr(n: u8) -> [Nat; 3] {
     let mut res = [
-        Nat::from_i64(0).unwrap(),
-        Nat::from_i64(0).unwrap(),
-        Nat::from_i64(0).unwrap(),
+        Nat::from_u64(0),
+        Nat::from_u64(0),
+        Nat::from_u64(0),
     ];
     for i in 0..3 {
-        res[2 - i] = Nat::from_u8(((n >> i) % 2 != 0) as u8).unwrap();
+        res[2 - i] = Nat::from_u8(((n >> i) % 2 != 0) as u8);
     }
     res
 }
@@ -170,11 +179,10 @@ fn str_to_nodes(x: &str, y: &str) -> ([Node; 3], [Node; 3]) {
 
 #[cfg(test)]
 mod tests {
-    use num_integer::Integer;
-    use num_traits::{One, Zero};
+
 
     use crate::circuit::{deal_rands, Rands};
-    use crate::shares::M;
+    use crate::shares::{M, mul_mod};
 
     use super::*;
 
@@ -198,7 +206,7 @@ mod tests {
         let and = Node::mul(xa_id, ya_id);
         let and_id = push_node(&mut g, and);
 
-        let xor = Node::add_unary(and_id, Const::Literal(One::one()));
+        let xor = Node::add_unary(and_id, Const::Literal(Nat::from(1u32)));
         push_node(&mut g, xor);
         g
     }
@@ -232,7 +240,7 @@ mod tests {
         let and = Node::mul(xa_id, xor_id);
         let and_id = push_node(&mut g, and);
 
-        let xor = Node::add_unary(and_id, Const::Literal(One::one()));
+        let xor = Node::add_unary(and_id, Const::Literal(Nat::from(1u32)));
         push_node(&mut g, xor);
         g
     }
@@ -242,16 +250,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 
@@ -261,7 +269,7 @@ mod tests {
                                         );
                                         g.transform_and_gates();
                                         let res = g.eval();
-                                        assert_eq!(res.open(), (x.open() * y.open()).mod_floor(&M));
+                                        assert_eq!(res.open(), mul_mod(&x.open(), &y.open()));
                                     }
                                 });
                         });
@@ -274,16 +282,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 
@@ -295,9 +303,7 @@ mod tests {
                                         let res = g.eval();
                                         assert_eq!(
                                             res.open(),
-                                            ((x.open() * y.open()).mod_floor(&M)
-                                                + Nat::from(1u32))
-                                            .mod_floor(&M)
+                                            mul_mod(&x.open(), &y.open()).add_mod(&Nat::from(1u32), &M)    
                                         );
                                     }
                                 });
@@ -311,16 +317,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 
@@ -332,9 +338,7 @@ mod tests {
                                         let res = g.eval();
                                         assert_eq!(
                                             res.open(),
-                                            (((x.clone().open() + y.open()) * x.open())
-                                                + Nat::from(1_u32))
-                                            .mod_floor(&M)
+                                            (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open())).add_mod(&Nat::from(1_u32), &M)  
                                         );
                                     }
                                 });
@@ -348,16 +352,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 
@@ -369,11 +373,7 @@ mod tests {
                                         let res = g.eval();
                                         assert_eq!(
                                             res.open(),
-                                            (((x.clone().open() + y.open()).mod_floor(&M)
-                                                * x.open())
-                                            .mod_floor(&M)
-                                                + Nat::from(1u32))
-                                            .mod_floor(&M)
+                                            (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open()).add_mod(&Nat::from(1u32), &M))
                                         );
                                     }
                                 });
@@ -387,16 +387,16 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [One::one(), Zero::zero()]
+            [Nat::ONE, Nat::ZERO]
                 .into_iter()
                 .for_each(|b1: Nat| {
-                    [One::one(), Zero::zero()]
+                    [Nat::ONE, Nat::ZERO]
                         .into_iter()
                         .for_each(|b2: Nat| {
-                            [One::one(), Zero::zero()]
+                            [Nat::ONE, Nat::ZERO]
                                 .into_iter()
                                 .for_each(|b3: Nat| {
-                                    for b4 in [One::one(), Zero::zero()] {
+                                    for b4 in [Nat::ONE, Nat::ZERO] {
                                         let x: Shares = Shares::new(b1.clone(), b2.clone());
                                         let y: Shares = Shares::new(b3.clone(), b4);
 
@@ -406,7 +406,7 @@ mod tests {
                                         let res = g.eval();
                                         assert_eq!(
                                             res.open(),
-                                            ((x.open() * y.clone().open()).mod_floor(&M) * y.open()).mod_floor(&M)
+                                            (mul_mod(&mul_mod(&x.open(), &y.clone().open()), &y.open()))
                                         );
                                     }
                                 });
@@ -420,7 +420,7 @@ mod tests {
         for _ in 0..100 {
             // deal_rands is indeterministic, so run it a lot of times ...
             let Rands { u, v, w } = deal_rands();
-            assert_eq!((u.open() * v.open()).mod_floor(&M), w.open());
+            assert_eq!(mul_mod(&u.open(), &v.open()), w.open());
         }
     }
 }

@@ -1,9 +1,10 @@
-use num_bigint::RandBigInt;
-use num_integer::Integer;
 use std::collections::HashMap;
 
+use crypto_bigint::rand_core::OsRng;
+use crypto_bigint::{NonZero, RandomMod};
+
 use crate::node::{Const, Gate, Node, NodeId};
-use crate::shares::{Shares, M, Nat};
+use crate::shares::{Shares, M, Nat, mul_mod};
 
 /// `Circuit` represents the circuit used in the BeDOZa protocol for
 /// passively secure two-party computation.
@@ -96,7 +97,7 @@ impl Circuit {
             } else {
                 panic!("expected parent id on AddUnary gate")
             }
-            
+
         }
         self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
@@ -127,10 +128,10 @@ impl Circuit {
                     panic!("could not look up const var");
                 }
             }
-            Const::AND(id1, id2) => match (e.get(&id1), e.get(&id2)) {
+            Const::MUL(id1, id2) => match (e.get(&id1), e.get(&id2)) {
                 (Some(const_value_1), Some(const_value_2)) => {
                     // Compute m - (e * d) mod m
-                    &M.clone() - (const_value_1.clone() * const_value_2.clone()).mod_floor(&M)
+                    M.sub_mod(&mul_mod(const_value_1, const_value_2), &M)
             },
                 (_, _) => panic!("could nok look up const vars for and"),
             },
@@ -210,7 +211,7 @@ impl Circuit {
                     let sub_mull_yd_ed_id = i + 10;
                     self.insert_node(
                         sub_mull_yd_ed_id,
-                        Node::add_unary(mul_yd_id, Const::AND(oeid, odid)),
+                        Node::add_unary(mul_yd_id, Const::MUL(oeid, odid)),
                     );
 
                     // Insert ADD gate with inputs add_wxe and sub_mul_yd_ed
@@ -267,30 +268,29 @@ pub struct Rands {
 /// Is does so by choosing random values in Zm for ux, uy, vx, vy and wx,
 /// and computes wy as (((ux + uy) * (vx + vy)) mod m - wx) mod m
 pub fn deal_rands() -> Rands {
-    let mut rng = rand::thread_rng();
 
     // Pick random elements from from Zm
-    let ux: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let uy: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let vx: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let vy: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
-    let wx: Nat = rng.gen_biguint(M.bits()).mod_floor(&M);
+    let ux: Nat = Nat::random_mod(&mut OsRng, &M);
+    let uy: Nat = Nat::random_mod(&mut OsRng, &M);
+    let vx: Nat = Nat::random_mod(&mut OsRng, &M);
+    let vy: Nat = Nat::random_mod(&mut OsRng, &M);
+    let wx: Nat = Nat::random_mod(&mut OsRng, &M);
 
     let u: Shares = Shares::new(ux.clone(), uy.clone());
     let v: Shares = Shares::new(vx.clone(), vy.clone());
 
     // Compute u * v mod m
-    let k1 = ux.clone() * vx.clone();
-    let k2 = ux * vy.clone();
-    let k3 = uy.clone() * vx;
-    let k4 = uy * vy;
-    let uv = (k1 + k2 + k3 + k4).mod_floor(&M);
+    let k1 = mul_mod(&vx, &ux);
+    let k2 = mul_mod(&ux, &vy);
+    let k3 = mul_mod(&uy, &vx);
+    let k4 = mul_mod(&uy, &vy);
+    let uv = k1.add_mod(&k2.add_mod(&k3.add_mod(&k4, &M), &M), &M);
 
     // Compute (u * v) mod m - wx, avoiding underflow if uv < wx
     let wy = if uv < wx.clone() {
-        &M.clone() + uv - wx.clone()
+        M.clone().add_mod(&uv.sub_mod(&wx, &M), &M)
     } else {
-        uv - wx.clone()
+        uv.sub_mod(&wx, &M)
     };
 
     let w = Shares::new(wx, wy);

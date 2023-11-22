@@ -1,9 +1,7 @@
 use getrandom::getrandom;
-use num_bigint::BigUint;
-use num_traits::{One, Zero};
 use std::cell::RefCell;
 
-use crate::shares::Shares;
+use crate::shares::{Shares, Nat};
 
 #[derive(Debug, Clone)]
 pub enum Gate {
@@ -17,9 +15,9 @@ pub enum Gate {
 
 #[derive(Debug, Clone)]
 pub enum Const {
-    Literal(BigUint),
+    Literal(Nat),
     Var(usize),
-    AND(usize, usize),
+    MUL(usize, usize),
 }
 
 pub type NodeId = usize;
@@ -111,7 +109,7 @@ impl Node {
 /// Converts an array of boolean values, representing the
 /// input of Alice or Bob, into input nodes, to be used in
 /// the boolean circuit.
-pub fn as_nodes(arr: [BigUint; 3]) -> [Node; 3] {
+pub fn as_nodes(arr: [Nat; 3]) -> [Node; 3] {
     // Sample random bits
     let mut buf = [0];
     if let Err(e) = getrandom(&mut buf) {
@@ -125,10 +123,10 @@ pub fn as_nodes(arr: [BigUint; 3]) -> [Node; 3] {
         //
         // First sample a random bit
 
-        let r: BigUint = if (buf[0] >> i) % 2 != 0 {
-            One::one()
+        let r: Nat = if (buf[0] >> i) % 2 != 0 {
+            Nat::ONE
         } else {
-            Zero::zero()
+            Nat::ZERO
         };
 
         // Then assign Alices share to r XOR b
