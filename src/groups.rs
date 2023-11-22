@@ -1,5 +1,6 @@
-use crypto_bigint::{rand_core::OsRng, RandomMod, NonZero};
-use crate::shares::Nat;
+use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
+
+use crate::nat::{Nat, G, M, P};
 
 /// A specification of the subgroup from Zp of prime order q,
 /// where p is a safe prime with associated Sofie Germain prime q
@@ -12,12 +13,16 @@ pub struct GroupSpec {
 }
 
 impl GroupSpec {
+    // TODO: Generate new group spec from safe primes
+
     /// Constructs a new group spec with security parameter k
     /// i.e. k is the bitsize of q = M
     pub fn new() -> GroupSpec {
-
-        // GroupSpec { p: (), q: (), g: () }
-        todo!()
+        GroupSpec {
+            p: P.clone(),
+            q: M.clone(),
+            g: G.clone(),
+        }
     }
 
     /// Returns a random from Zq
@@ -25,6 +30,8 @@ impl GroupSpec {
         Nat::random_mod(&mut OsRng, &self.q)
     }
 }
+
+// TODO: This (below) works with num_bigint, requires rework for crypto_bigint. Hardcode for now
 
 ///// Sample random generator of Zp* assuming p = self is a safe prime
 /////

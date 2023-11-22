@@ -1,15 +1,19 @@
 use circuit::push_node;
+use nat::Nat;
 use node::{as_nodes, Const, Node};
 use std::env;
 
 use crate::circuit::Circuit;
-use crate::shares::{Shares, Nat};
 use crate::groups::GroupSpec;
+use crate::schnorr::schnorr_circuit;
+use crate::shares::Shares;
 
 mod circuit;
-mod node;
-mod shares;
 mod groups;
+mod nat;
+mod node;
+mod schnorr;
+mod shares;
 
 fn main() {
     // Inputs
@@ -20,17 +24,17 @@ fn main() {
     let (in_alice, in_bob) = str_to_nodes(&x, &y);
 
     // Initialize circuit
-    let mut g: Circuit = blood_type_compatability_circuit(in_alice, in_bob);
-    g.transform_and_gates();
+    // let mut g: Circuit = schnorr_circuit(in_alice, in_bob);
+    // g.transform_and_gates();
 
     // Evaluate circuit
-    let Shares { x, y } = g.eval();
+    // let Shares { x, y } = g.eval();
 
     print!("---------------------------------------------------\n");
     print!("Result of evaluation:\n");
     println!("Alices share: {:?}", x);
     println!("Bobs share: {:?}", y);
-    println!("Reconstruction (XOR): {:?}", x ^ y);
+    // println!("Reconstruction (XOR): {:?}", x ^ y);
     print!("---------------------------------------------------\n");
 }
 
@@ -93,24 +97,6 @@ fn blood_type_compatability_circuit(alice_in: [Node; 3], bob_in: [Node; 3]) -> C
     g
 }
 
-fn schnorr_circuit(sk: Shares, r: Shares, e: Nat) -> Circuit {
-    let mut g: Circuit = Circuit { nodes: vec![] };
-
-    let in_sk = Node::in_(sk);
-    let in_sk_id = push_node(&mut g, in_sk);
-
-    let in_r = Node::in_(r);
-    let in_r_id = push_node(&mut g, in_r);
-
-    let mul_e = Node::mul_unary(in_sk_id, Const::Literal(e));
-    let mul_e_id = push_node(&mut g, mul_e);
-
-    let z = Node::add(in_r_id, mul_e_id);
-    let _ = push_node(&mut g, z);
-    g
-}
-
-
 // -------------- parsing inputs
 
 fn read_args(args: env::Args) -> (String, String) {
@@ -166,11 +152,7 @@ fn parse_blood_type(s: &str) -> u8 {
 }
 
 fn as_bool_arr(n: u8) -> [Nat; 3] {
-    let mut res = [
-        Nat::from_u64(0),
-        Nat::from_u64(0),
-        Nat::from_u64(0),
-    ];
+    let mut res = [Nat::from_u64(0), Nat::from_u64(0), Nat::from_u64(0)];
     for i in 0..3 {
         res[2 - i] = Nat::from_u8(((n >> i) % 2 != 0) as u8);
     }
@@ -190,10 +172,10 @@ fn str_to_nodes(x: &str, y: &str) -> ([Node; 3], [Node; 3]) {
 #[cfg(test)]
 mod tests {
 
-
-    use crate::circuit::{deal_rands, Rands};
-    use crate::shares::{M, mul_mod};
-    use crypto_bigint::Pow;
+    use crate::{
+        circuit::{deal_rands, Rands},
+        nat::{mul_mod, M},
+    };
 
     use super::*;
 
@@ -261,30 +243,22 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [Nat::ONE, Nat::ZERO]
-                .into_iter()
-                .for_each(|b1: Nat| {
-                    [Nat::ONE, Nat::ZERO]
-                        .into_iter()
-                        .for_each(|b2: Nat| {
-                            [Nat::ONE, Nat::ZERO]
-                                .into_iter()
-                                .for_each(|b3: Nat| {
-                                    for b4 in [Nat::ONE, Nat::ZERO] {
-                                        let x: Shares = Shares::from(b1.clone(), b2.clone());
-                                        let y: Shares = Shares::from(b3.clone(), b4);
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4);
 
-                                        let mut g: Circuit = single_mul_gate(
-                                            Node::in_(x.clone()),
-                                            Node::in_(y.clone()),
-                                        );
-                                        g.transform_and_gates();
-                                        let res = g.eval();
-                                        assert_eq!(res.open(), mul_mod(&x.open(), &y.open()));
-                                    }
-                                });
-                        });
+                            let mut g: Circuit =
+                                single_mul_gate(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(res.open(), mul_mod(&x.open(), &y.open(), &M));
+                        }
+                    });
                 });
+            });
         }
     }
 
@@ -293,33 +267,25 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [Nat::ONE, Nat::ZERO]
-                .into_iter()
-                .for_each(|b1: Nat| {
-                    [Nat::ONE, Nat::ZERO]
-                        .into_iter()
-                        .for_each(|b2: Nat| {
-                            [Nat::ONE, Nat::ZERO]
-                                .into_iter()
-                                .for_each(|b3: Nat| {
-                                    for b4 in [Nat::ONE, Nat::ZERO] {
-                                        let x: Shares = Shares::from(b1.clone(), b2.clone());
-                                        let y: Shares = Shares::from(b3.clone(), b4);
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4);
 
-                                        let mut g = and_xor_unary_one(
-                                            Node::in_(x.clone()),
-                                            Node::in_(y.clone()),
-                                        );
-                                        g.transform_and_gates();
-                                        let res = g.eval();
-                                        assert_eq!(
-                                            res.open(),
-                                            mul_mod(&x.open(), &y.open()).add_mod(&Nat::from(1u32), &M)
-                                        );
-                                    }
-                                });
-                        });
+                            let mut g =
+                                and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(
+                                res.open(),
+                                mul_mod(&x.open(), &y.open(), &M).add_mod(&Nat::from(1u32), &M)
+                            );
+                        }
+                    });
                 });
+            });
         }
     }
 
@@ -328,33 +294,26 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [Nat::ONE, Nat::ZERO]
-                .into_iter()
-                .for_each(|b1: Nat| {
-                    [Nat::ONE, Nat::ZERO]
-                        .into_iter()
-                        .for_each(|b2: Nat| {
-                            [Nat::ONE, Nat::ZERO]
-                                .into_iter()
-                                .for_each(|b3: Nat| {
-                                    for b4 in [Nat::ONE, Nat::ZERO] {
-                                        let x: Shares = Shares::from(b1.clone(), b2.clone());
-                                        let y: Shares = Shares::from(b3.clone(), b4);
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4);
 
-                                        let mut g = x_plus_y_times_x_plus_1(
-                                            Node::in_(x.clone()),
-                                            Node::in_(y.clone()),
-                                        );
-                                        g.transform_and_gates();
-                                        let res = g.eval();
-                                        assert_eq!(
-                                            res.open(),
-                                            (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open())).add_mod(&Nat::from(1_u32), &M)
-                                        );
-                                    }
-                                });
-                        });
+                            let mut g =
+                                x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(
+                                res.open(),
+                                (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open(), &M))
+                                    .add_mod(&Nat::from(1_u32), &M)
+                            );
+                        }
+                    });
                 });
+            });
         }
     }
 
@@ -363,33 +322,26 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [Nat::ONE, Nat::ZERO]
-                .into_iter()
-                .for_each(|b1: Nat| {
-                    [Nat::ONE, Nat::ZERO]
-                        .into_iter()
-                        .for_each(|b2: Nat| {
-                            [Nat::ONE, Nat::ZERO]
-                                .into_iter()
-                                .for_each(|b3: Nat| {
-                                    for b4 in [Nat::ONE, Nat::ZERO] {
-                                        let x: Shares = Shares::from(b1.clone(), b2.clone());
-                                        let y: Shares = Shares::from(b3.clone(), b4);
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4);
 
-                                        let mut g = x_plus_y_times_x_plus_1(
-                                            Node::in_(x.clone()),
-                                            Node::in_(y.clone()),
-                                        );
-                                        g.transform_and_gates();
-                                        let res = g.eval();
-                                        assert_eq!(
-                                            res.open(),
-                                            (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open()).add_mod(&Nat::from(1u32), &M))
-                                        );
-                                    }
-                                });
-                        });
+                            let mut g =
+                                x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(
+                                res.open(),
+                                (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open(), &M)
+                                    .add_mod(&Nat::from(1u32), &M))
+                            );
+                        }
+                    });
                 });
+            });
         }
     }
 
@@ -398,31 +350,24 @@ mod tests {
         // input gates
 
         for _ in 0..100 {
-            [Nat::ONE, Nat::ZERO]
-                .into_iter()
-                .for_each(|b1: Nat| {
-                    [Nat::ONE, Nat::ZERO]
-                        .into_iter()
-                        .for_each(|b2: Nat| {
-                            [Nat::ONE, Nat::ZERO]
-                                .into_iter()
-                                .for_each(|b3: Nat| {
-                                    for b4 in [Nat::ONE, Nat::ZERO] {
-                                        let x: Shares = Shares::from(b1.clone(), b2.clone());
-                                        let y: Shares = Shares::from(b3.clone(), b4);
+            [Nat::ONE, Nat::ZERO].into_iter().for_each(|b1: Nat| {
+                [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
+                    [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
+                        for b4 in [Nat::ONE, Nat::ZERO] {
+                            let x: Shares = Shares::from(b1.clone(), b2.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4);
 
-                                        let mut g =
-                                            and_and(Node::in_(x.clone()), Node::in_(y.clone()));
-                                        g.transform_and_gates();
-                                        let res = g.eval();
-                                        assert_eq!(
-                                            res.open(),
-                                            (mul_mod(&mul_mod(&x.open(), &y.clone().open()), &y.open()))
-                                        );
-                                    }
-                                });
-                        });
+                            let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
+                            g.transform_and_gates();
+                            let res = g.eval();
+                            assert_eq!(
+                                res.open(),
+                                (mul_mod(&mul_mod(&x.open(), &y.clone().open(), &M), &y.open(), &M))
+                            );
+                        }
+                    });
                 });
+            });
         }
     }
 
@@ -431,7 +376,7 @@ mod tests {
         for _ in 0..100 {
             // deal_rands is indeterministic, so run it a lot of times ...
             let Rands { u, v, w } = deal_rands();
-            assert_eq!(mul_mod(&u.open(), &v.open()), w.open());
+            assert_eq!(mul_mod(&u.open(), &v.open(), &M), w.open());
         }
     }
 
@@ -443,7 +388,7 @@ mod tests {
         let ss_sk = Shares::new(&sk);
         // Have Alice choose a random r1 from Zq, and compute g^r1
         let r1 = group_spec.rand_exp();
-        let c1 = group_spec.g.pow();
+        // let c1 = group_spec.g.pow();
         // Have Bob choose a random r2 from Zq, and compute g^r2
         let r2 = group_spec.rand_exp();
         // A

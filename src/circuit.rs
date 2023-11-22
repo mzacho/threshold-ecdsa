@@ -3,8 +3,9 @@ use std::collections::HashMap;
 use crypto_bigint::rand_core::OsRng;
 use crypto_bigint::RandomMod;
 
+use crate::nat::{mul_mod, Nat, M};
 use crate::node::{Const, Gate, Node, NodeId};
-use crate::shares::{Shares, M, Nat, mul_mod};
+use crate::shares::Shares;
 
 /// `Circuit` represents the circuit used in the BeDOZa protocol for
 /// passively secure two-party computation.
@@ -23,13 +24,11 @@ pub struct Circuit {
 pub type Env = HashMap<NodeId, Nat>;
 
 impl Circuit {
-
     /// Evaluates the circuit and returns the shares of the last node
     ///
     /// It does so by iterating over all nodes, and propagating values from
     /// parents to children with respect to the operation of the current node.
     pub fn eval(self) -> Shares {
-
         let mut env: Env = HashMap::new();
 
         let len = self.nodes.len();
@@ -49,27 +48,27 @@ impl Circuit {
                 }
                 match &node.op {
                     Gate::AddUnary(c) => {
-                                let p1_val = p1.as_ref().unwrap().clone();
-                                let node = &self.nodes[id];
-                                let const_value = Self::lookup_const(&env, c);
-                                *node.value.borrow_mut() = Some(p1_val + const_value);
+                        let p1_val = p1.as_ref().unwrap().clone();
+                        let node = &self.nodes[id];
+                        let const_value = Self::lookup_const(&env, c);
+                        *node.value.borrow_mut() = Some(p1_val + const_value);
                     }
                     Gate::Mul => panic!("circuit not normalized"),
                     Gate::Add => {
-                            if let Some(p2_id) = node.in_2 {
-                                let p2 = &self.nodes[p2_id].value.borrow();
-                                if p1.is_some() && p2.is_some() {
-                                    let v1 = p1.as_ref().unwrap().clone();
-                                    let v2 = p2.as_ref().unwrap().clone();
-                                    let node = &self.nodes[id];
-                                    *node.value.borrow_mut() = Some(v1 + v2);
-                                } else {
-                                    panic!("no values on parents of ADD")
-                                }
+                        if let Some(p2_id) = node.in_2 {
+                            let p2 = &self.nodes[p2_id].value.borrow();
+                            if p1.is_some() && p2.is_some() {
+                                let v1 = p1.as_ref().unwrap().clone();
+                                let v2 = p2.as_ref().unwrap().clone();
+                                let node = &self.nodes[id];
+                                *node.value.borrow_mut() = Some(v1 + v2);
                             } else {
-                                panic!("expected parent id on Add gate")
+                                panic!("no values on parents of ADD")
                             }
-                    },
+                        } else {
+                            panic!("expected parent id on Add gate")
+                        }
+                    }
                     Gate::In => continue,
                     Gate::Open => {
                         match node.in_1 {
@@ -88,16 +87,15 @@ impl Circuit {
                         }
                     }
                     Gate::MulUnary(c) => {
-                                let p1_val = p1.as_ref().unwrap().clone();
-                                let node = &self.nodes[id];
-                                let b = Self::lookup_const(&env, c);
-                                *node.value.borrow_mut() = Some(p1_val * b);
+                        let p1_val = p1.as_ref().unwrap().clone();
+                        let node = &self.nodes[id];
+                        let b = Self::lookup_const(&env, c);
+                        *node.value.borrow_mut() = Some(p1_val * b);
                     }
                 }
             } else {
                 panic!("expected parent id on AddUnary gate")
             }
-
         }
         self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
@@ -131,8 +129,8 @@ impl Circuit {
             Const::MUL(id1, id2) => match (e.get(&id1), e.get(&id2)) {
                 (Some(const_value_1), Some(const_value_2)) => {
                     // Compute m - (e * d) mod m
-                    M.sub_mod(&mul_mod(const_value_1, const_value_2), &M)
-            },
+                    M.sub_mod(&mul_mod(const_value_1, const_value_2, &M), &M)
+                }
                 (_, _) => panic!("could nok look up const vars for and"),
             },
         }
@@ -268,7 +266,6 @@ pub struct Rands {
 /// Is does so by choosing random values in Zm for ux, uy, vx, vy and wx,
 /// and computes wy as (((ux + uy) * (vx + vy)) mod m - wx) mod m
 pub fn deal_rands() -> Rands {
-
     // Pick random elements from from Zm
     let ux: Nat = Nat::random_mod(&mut OsRng, &M);
     let uy: Nat = Nat::random_mod(&mut OsRng, &M);
@@ -280,10 +277,10 @@ pub fn deal_rands() -> Rands {
     let v: Shares = Shares::from(vx.clone(), vy.clone());
 
     // Compute u * v mod m
-    let k1 = mul_mod(&vx, &ux);
-    let k2 = mul_mod(&ux, &vy);
-    let k3 = mul_mod(&uy, &vx);
-    let k4 = mul_mod(&uy, &vy);
+    let k1 = mul_mod(&vx, &ux, &M);
+    let k2 = mul_mod(&ux, &vy, &M);
+    let k3 = mul_mod(&uy, &vx, &M);
+    let k4 = mul_mod(&uy, &vy, &M);
     let uv = k1.add_mod(&k2.add_mod(&k3.add_mod(&k4, &M), &M), &M);
 
     // Compute (u * v) mod m - wx, avoiding underflow if uv < wx

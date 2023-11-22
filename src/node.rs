@@ -1,7 +1,7 @@
 use getrandom::getrandom;
 use std::cell::RefCell;
 
-use crate::shares::{Shares, Nat};
+use crate::{nat::Nat, shares::Shares};
 
 #[derive(Debug, Clone)]
 pub enum Gate {
