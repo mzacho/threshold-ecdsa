@@ -316,3 +316,4 @@ pub fn push_node(c: &mut Circuit, n: Node) -> NodeId {
     c.nodes.push(n);
     c.nodes.len() - 1
 }
+

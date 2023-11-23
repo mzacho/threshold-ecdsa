@@ -1,3 +1,5 @@
+use std::env;
+
 use crypto_bigint::Encoding;
 use sha256_rs::sha256;
 
@@ -8,6 +10,16 @@ use crate::{
     node::{Const, Node},
     shares::Shares,
 };
+
+pub fn run_schnorr(m: Nat) {
+    todo!()
+}
+
+pub fn read_args_message(args: env::Args) -> Nat {
+    let args: Vec<String> = args.collect();
+    let m = Nat::from(args.get(2).unwrap().parse::<u32>().unwrap());
+    m
+}
 
 pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
     assert!(r.m == sk.m);
@@ -42,4 +54,24 @@ pub fn compute_e(message: Nat, group: GroupSpec) -> Nat {
     let e = Nat::from_be_bytes(sha256(&c_m_bytes));
 
     e
+}
+
+#[cfg(test)]
+mod tests {
+
+    use crate::{groups::GroupSpec, shares::Shares};
+
+    #[test]
+    fn test_schnorr_circuit() {
+        let group_spec = GroupSpec::new();
+        // Construct a new secret key
+        let sk = group_spec.rand_exp();
+        let ss_sk = Shares::new(&sk, group_spec.q);
+        // Have Alice choose a random r1 from Zq, and compute g^r1
+        let r1 = group_spec.rand_exp();
+        // let c1 = group_spec.g.pow();
+        // Have Bob choose a random r2 from Zq, and compute g^r2
+        let r2 = group_spec.rand_exp();
+        // A
+    }
 }
