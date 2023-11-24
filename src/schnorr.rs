@@ -22,7 +22,11 @@ pub fn read_args_message(args: env::Args) -> Nat {
 }
 
 pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
-    let mut g: Circuit = Circuit { nodes: vec![] };
+    assert!(r.m == sk.m);
+    let mut g: Circuit = Circuit {
+        nodes: vec![],
+        modulus: r.m,
+    };
 
     let in_sk = Node::in_(sk);
     let in_sk_id = push_node(&mut g, in_sk);
@@ -39,7 +43,6 @@ pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
 }
 
 pub fn compute_e(message: Nat, group: GroupSpec) -> Nat {
-
     let r1 = group.rand_exp();
     let r2 = group.rand_exp();
 
@@ -56,14 +59,14 @@ pub fn compute_e(message: Nat, group: GroupSpec) -> Nat {
 #[cfg(test)]
 mod tests {
 
-    use crate::{groups::GroupSpec, nat::M, shares::Shares};
+    use crate::{groups::GroupSpec, shares::Shares};
 
     #[test]
     fn test_schnorr_circuit() {
         let group_spec = GroupSpec::new();
         // Construct a new secret key
         let sk = group_spec.rand_exp();
-        let ss_sk = Shares::new(&sk, *M);
+        let ss_sk = Shares::new(&sk, group_spec.q);
         // Have Alice choose a random r1 from Zq, and compute g^r1
         let r1 = group_spec.rand_exp();
         // let c1 = group_spec.g.pow();

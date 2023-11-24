@@ -1,9 +1,9 @@
-use crypto_bigint::{AddMod, NonZero};
+use crypto_bigint::NonZero;
 use getrandom::getrandom;
 use std::cell::RefCell;
 
 use crate::{
-    nat::{Nat, M},
+    nat::Nat,
     shares::Shares,
 };
 
@@ -136,26 +136,34 @@ pub fn as_nodes(arr: [Nat; 3], modulus: NonZero<Nat>) -> [Node; 3] {
         // Then assign Alices share to r XOR b
         // and Bobs share to r
 
-        let s = Shares::from(r.clone().add_mod(b, &M), r, modulus);
+        let s = Shares::from(r.clone().add_mod(b, &modulus), r, modulus);
 
         *nodes[i].value.borrow_mut() = Some(s);
     }
     nodes
 }
 
-// Tests
+/// --------------- tests ----------------
 
 #[cfg(test)]
 mod tests {
+
+    use crypto_bigint::NonZero;
+
     use crate::{
-        circuit::{push_node, Circuit},
-        nat::{mul_mod, M},
+        circuit::{deal_rands, push_node, Circuit, Rands},
+        groups::GroupSpec,
+        nat::{mul_mod, Nat},
+        node::{Const, Node},
+        shares::Shares,
     };
 
-    use super::*;
-
     fn single_mul_gate(x: Node, y: Node) -> Circuit {
-        let mut g: Circuit = Circuit { nodes: vec![] };
+        let modulus = x.value.borrow().as_ref().unwrap().m.clone();
+        let mut g: Circuit = Circuit {
+            nodes: vec![],
+            modulus,
+        };
 
         let xa_id = push_node(&mut g, x);
         let ya_id = push_node(&mut g, y);
@@ -166,7 +174,11 @@ mod tests {
     }
 
     fn and_xor_unary_one(x: Node, y: Node) -> Circuit {
-        let mut g: Circuit = Circuit { nodes: vec![] };
+        let modulus = x.value.borrow().as_ref().unwrap().m.clone();
+        let mut g: Circuit = Circuit {
+            nodes: vec![],
+            modulus,
+        };
 
         let xa_id = push_node(&mut g, x);
         let ya_id = push_node(&mut g, y);
@@ -180,7 +192,11 @@ mod tests {
     }
 
     fn and_and(x: Node, y: Node) -> Circuit {
-        let mut g: Circuit = Circuit { nodes: vec![] };
+        let modulus = x.value.borrow().as_ref().unwrap().m.clone();
+        let mut g: Circuit = Circuit {
+            nodes: vec![],
+            modulus,
+        };
 
         let xa_id = push_node(&mut g, x);
         let ya_id = push_node(&mut g, y);
@@ -190,14 +206,15 @@ mod tests {
 
         let and = Node::mul(and_id, ya_id);
         let _ = push_node(&mut g, and);
-
-        //let xor = Node::xor_unary(and_id, Const::Literal(One::one()));
-        //push_node(&mut g, xor);
         g
     }
 
     fn x_plus_y_times_x_plus_1(x: Node, y: Node) -> Circuit {
-        let mut g: Circuit = Circuit { nodes: vec![] };
+        let modulus = x.value.borrow().as_ref().unwrap().m.clone();
+        let mut g: Circuit = Circuit {
+            nodes: vec![],
+            modulus,
+        };
 
         let xa_id = push_node(&mut g, x);
         let ya_id = push_node(&mut g, y);
@@ -222,14 +239,15 @@ mod tests {
                 [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
-                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+                            let m = NonZero::new(Nat::from(3_u32)).unwrap();
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
 
                             let mut g: Circuit =
                                 single_mul_gate(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
-                            assert_eq!(res.open(), mul_mod(&x.open(), &y.open(), &M));
+                            assert_eq!(res.open(), mul_mod(&x.open(), &y.open(), &m));
                         }
                     });
                 });
@@ -246,8 +264,9 @@ mod tests {
                 [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
-                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+                            let m = NonZero::new(Nat::from(3_u32)).unwrap();
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
 
                             let mut g =
                                 and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
@@ -255,7 +274,7 @@ mod tests {
                             let res = g.eval();
                             assert_eq!(
                                 res.open(),
-                                mul_mod(&x.open(), &y.open(), &M).add_mod(&Nat::from(1u32), &M)
+                                mul_mod(&x.open(), &y.open(), &m).add_mod(&Nat::from(1u32), &m)
                             );
                         }
                     });
@@ -273,8 +292,9 @@ mod tests {
                 [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
-                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+                            let m = NonZero::new(Nat::from(3_u32)).unwrap();
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
 
                             let mut g =
                                 x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
@@ -282,8 +302,8 @@ mod tests {
                             let res = g.eval();
                             assert_eq!(
                                 res.open(),
-                                (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open(), &M))
-                                    .add_mod(&Nat::from(1_u32), &M)
+                                (mul_mod(&x.clone().open().add_mod(&y.open(), &m), &x.open(), &m))
+                                    .add_mod(&Nat::from(1_u32), &m)
                             );
                         }
                     });
@@ -301,8 +321,9 @@ mod tests {
                 [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
-                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+                            let m = NonZero::new(Nat::from(3_u32)).unwrap();
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
 
                             let mut g =
                                 x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
@@ -310,8 +331,8 @@ mod tests {
                             let res = g.eval();
                             assert_eq!(
                                 res.open(),
-                                (mul_mod(&x.clone().open().add_mod(&y.open(), &M), &x.open(), &M)
-                                    .add_mod(&Nat::from(1u32), &M))
+                                (mul_mod(&x.clone().open().add_mod(&y.open(), &m), &x.open(), &m)
+                                    .add_mod(&Nat::from(1u32), &m))
                             );
                         }
                     });
@@ -329,8 +350,9 @@ mod tests {
                 [Nat::ONE, Nat::ZERO].into_iter().for_each(|b2: Nat| {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), *M);
-                            let y: Shares = Shares::from(b3.clone(), b4, *M);
+                            let m = NonZero::new(Nat::from(3_u32)).unwrap();
+                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
 
                             let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
@@ -338,9 +360,9 @@ mod tests {
                             assert_eq!(
                                 res.open(),
                                 (mul_mod(
-                                    &mul_mod(&x.open(), &y.clone().open(), &M),
+                                    &mul_mod(&x.open(), &y.clone().open(), &m),
                                     &y.open(),
-                                    &M
+                                    &m
                                 ))
                             );
                         }
@@ -348,5 +370,32 @@ mod tests {
                 });
             });
         }
+    }
+
+    #[test]
+    fn test_deal_rands() {
+        for _ in 0..100 {
+            // deal_rands is indeterministic, so run it a lot of times ...
+            let modulus = NonZero::new(Nat::from_u32(1337)).unwrap();
+            let Rands { u, v, w } = deal_rands(&modulus);
+            assert_eq!(mul_mod(&u.open(), &v.open(), &modulus), w.open());
+        }
+    }
+
+    #[test]
+    fn test_schnorr_circuit() {
+        let group_spec = GroupSpec::new();
+        // Construct a new secret key
+        let sk = group_spec.rand_exp();
+        let ss_sk = Shares::new(&sk, group_spec.q);
+        // Have Alice choose a random r1 from Zq, and compute g^r1
+        let r1 = group_spec.rand_exp();
+        // let c1 = group_spec.g.pow();
+        // Have Bob choose a random r2 from Zq, and compute g^r2
+        let r2 = group_spec.rand_exp();
+        // todo
+        let _ = ss_sk;
+        let _ = r1;
+        let _ = r2;
     }
 }

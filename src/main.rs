@@ -29,6 +29,7 @@ fn main() {
     }
 }
 
+// -------------- parsing inputs
 fn read_command() -> String {
     let args: Vec<String> = args().collect();
     let cmd = args.get(1).unwrap().to_string();
