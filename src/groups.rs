@@ -1,5 +1,3 @@
-use std::{ops::Div, usize};
-
 use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
 
 use crate::nat::{mul_mod, Nat};
