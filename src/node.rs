@@ -2,10 +2,7 @@ use crypto_bigint::NonZero;
 use getrandom::getrandom;
 use std::cell::RefCell;
 
-use crate::{
-    nat::Nat,
-    shares::Shares,
-};
+use crate::{nat::Nat, shares::Shares};
 
 #[derive(Debug, Clone)]
 pub enum Gate {
@@ -381,21 +378,5 @@ mod tests {
             assert_eq!(mul_mod(&u.open(), &v.open(), &modulus), w.open());
         }
     }
-
-    #[test]
-    fn test_schnorr_circuit() {
-        let group_spec = GroupSpec::new();
-        // Construct a new secret key
-        let sk = group_spec.rand_exp();
-        let ss_sk = Shares::new(&sk, group_spec.q);
-        // Have Alice choose a random r1 from Zq, and compute g^r1
-        let r1 = group_spec.rand_exp();
-        // let c1 = group_spec.g.pow();
-        // Have Bob choose a random r2 from Zq, and compute g^r2
-        let r2 = group_spec.rand_exp();
-        // todo
-        let _ = ss_sk;
-        let _ = r1;
-        let _ = r2;
-    }
 }
+

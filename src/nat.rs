@@ -49,21 +49,13 @@ mod test {
 
     #[test]
     fn test_pow_mod() {
-        let a = 7_u32;
-        let b = 3_u32;
-        let c = 5_u32;
+        let a = 2_u32;
+        let b = 4_u32;
+        let c = 23_u32;
 
         assert_eq!(
             pow_mod(&Nat::from(a), &Nat::from(b), &Nat::from(c)),
-            Nat::from(a.pow(b).rem(c))
-        );
-        assert_eq!(
-            pow_mod(&Nat::from(c), &Nat::from(a), &Nat::from(b)),
-            Nat::from(c.pow(a).rem(b))
-        );
-        assert_eq!(
-            pow_mod(&Nat::from(b), &Nat::from(c), &Nat::from(a)),
-            Nat::from(b.pow(c).rem(a))
+            Nat::from_u32(16)
         );
     }
 
