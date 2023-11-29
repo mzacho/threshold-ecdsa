@@ -48,12 +48,13 @@ fn get_parameters() -> (
     (p, q, alpha)
 }
 
-// Generate a generator of Zp*
+// Generate a generator of Zp* using rejection sampling
 fn generate_group_generator(
     p: NonZero<crypto_bigint::Uint<4>>,
     q: NonZero<crypto_bigint::Uint<4>>,
 ) -> crypto_bigint::Uint<4> {
     let mut x = Nat::random_mod(&mut OsRng, &p);
+    // While x^q mod p != 1 try with a new random x
     while pow_mod(&x, &q, &p) != Nat::ONE {
         x = Nat::random_mod(&mut OsRng, &p);
     }
