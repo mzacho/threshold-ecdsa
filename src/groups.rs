@@ -1,10 +1,11 @@
 use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
 
-use crate::nat::{mul_mod, Nat};
+use crate::nat::{pow_mod, Nat};
 use crypto_primes::generate_safe_prime;
 
 /// A specification of the subgroup from Zp of prime order q,
 /// where p is a safe prime with associated Sofie Germain prime q
+#[derive(Debug)]
 pub struct GroupSpec {
     /// Primes p and q where p = 2q+1
     pub p: NonZero<Nat>,
@@ -21,11 +22,12 @@ impl GroupSpec {
         // where q is a safe prime
         let (p, q, alpha) = get_parameters();
 
-        GroupSpec {
-            p: NonZero::new(p).unwrap(),
-            q,
-            alpha,
-        }
+        GroupSpec { p, q, alpha }
+        // GroupSpec {
+        //     p: NonZero::new(Nat::from_u16(23)).unwrap(),
+        //     q: NonZero::new(Nat::from_u16(11)).unwrap(),
+        //     alpha: Nat::from_u16(2),
+        // }
     }
 
     /// Returns a random from Zq
@@ -37,31 +39,35 @@ impl GroupSpec {
 // Generate a safe prime p = 2q + 1, where q is also a safe prime
 // and a generator alpha of Zp*
 fn get_parameters() -> (
-    crypto_bigint::Uint<4>,
+    NonZero<crypto_bigint::Uint<4>>,
     NonZero<crypto_bigint::Uint<4>>,
     crypto_bigint::Uint<4>,
 ) {
     let (p, q) = generate_safe_primes();
-    let alpha = generate_group_generator(q, p);
+    let alpha = generate_group_generator(p, q);
     (p, q, alpha)
 }
 
 // Generate a generator of Zp*
 fn generate_group_generator(
+    p: NonZero<crypto_bigint::Uint<4>>,
     q: NonZero<crypto_bigint::Uint<4>>,
-    p: crypto_bigint::Uint<4>,
 ) -> crypto_bigint::Uint<4> {
-    let mut x = Nat::random_mod(&mut OsRng, &q);
-    while x == Nat::ONE {
-        x = Nat::random_mod(&mut OsRng, &q);
+    let mut x = Nat::random_mod(&mut OsRng, &p);
+    while pow_mod(&x, &q, &p) != Nat::ONE {
+        x = Nat::random_mod(&mut OsRng, &p);
     }
 
-    mul_mod(&x, &x, &p)
+    x
 }
 
 // Generate a safe prime p = 2q + 1, where q is also a safe prime
-fn generate_safe_primes() -> (crypto_bigint::Uint<4>, NonZero<crypto_bigint::Uint<4>>) {
-    let p: crypto_bigint::Uint<4> = generate_safe_prime(Option::None);
+fn generate_safe_primes() -> (
+    NonZero<crypto_bigint::Uint<4>>,
+    NonZero<crypto_bigint::Uint<4>>,
+) {
+    let p: NonZero<crypto_bigint::Uint<4>> =
+        NonZero::new(generate_safe_prime(Option::None)).unwrap();
     let qinit: crypto_bigint::Uint<4> = p
         .wrapping_sub(&Nat::ONE)
         .checked_div(&Nat::from(2_u32))
