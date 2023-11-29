@@ -6,6 +6,7 @@ mod nat;
 mod node;
 mod schnorr;
 mod shares;
+mod ecdsa;
 
 const ECDSA: &str = "ecdsa";
 const SCHNORR: &str = "schnorr";
