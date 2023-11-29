@@ -1,7 +1,7 @@
 use std::env;
 
 use crypto_bigint::Encoding;
-use sha2::{Digest, Sha256, Sha512};
+use sha2::{Digest, Sha256};
 
 use crate::{
     circuit::{push_node, Circuit},
@@ -51,10 +51,10 @@ pub fn run_schnorr(m: Nat, verbose: bool) {
     let sk_share = Shares::new(&sk, group.q);
 
     // Construct net schnorr circuit
-    let curcuit = schnorr_circuit(r_shares, sk_share, e);
+    let circuit = schnorr_circuit(r_shares, sk_share, e);
 
     // Evaluate the circuit
-    let result = curcuit.eval();
+    let result = circuit.eval();
 
     // Open the result to get the second component z of the signature
     let z = result.open();
@@ -77,7 +77,7 @@ pub fn run_schnorr(m: Nat, verbose: bool) {
     // Compute e_verify = Sha256(c_verify, m)
     let e_verify = compute_e(c_verify, m);
 
-    if (verbose) {
+    if verbose {
         println!("group: {:?}", group);
         println!("r1: {:?}", r1);
         println!("r2: {:?}", r2);

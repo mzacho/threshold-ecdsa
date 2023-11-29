@@ -110,6 +110,7 @@ impl Node {
 /// Converts an array of boolean values, representing the
 /// input of Alice or Bob, into input nodes, to be used in
 /// the boolean circuit.
+#[allow(dead_code)]
 pub fn as_nodes(arr: [Nat; 3], modulus: NonZero<Nat>) -> [Node; 3] {
     // Sample random bits
     let mut buf = [0];
@@ -149,7 +150,6 @@ mod tests {
 
     use crate::{
         circuit::{deal_rands, push_node, Circuit, Rands},
-        groups::GroupSpec,
         nat::{mul_mod, Nat},
         node::{Const, Node},
         shares::Shares,
@@ -379,4 +379,3 @@ mod tests {
         }
     }
 }
-
