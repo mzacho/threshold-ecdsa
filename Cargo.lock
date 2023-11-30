@@ -19,6 +19,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto-primes"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "97a4eeb0a8686cfc94242c8860628627206a2b24148d6ab8f5d41c708438582f"
+dependencies = [
+ "crypto-bigint",
+ "rand_core",
+]
+
+[[package]]
 name = "getrandom"
 version = "0.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -94,6 +104,7 @@ name = "threshold-ecdsa"
 version = "0.1.0"
 dependencies = [
  "crypto-bigint",
+ "crypto-primes",
  "getrandom",
  "lazy_static",
  "rand",

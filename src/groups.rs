@@ -1,9 +1,11 @@
 use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
 
-use crate::nat::Nat;
+use crate::nat::{pow_mod, Nat};
+use crypto_primes::generate_safe_prime;
 
 /// A specification of the subgroup from Zp of prime order q,
 /// where p is a safe prime with associated Sofie Germain prime q
+#[derive(Debug)]
 pub struct GroupSpec {
     /// Primes p and q where p = 2q+1
     pub p: NonZero<Nat>,
@@ -13,16 +15,19 @@ pub struct GroupSpec {
 }
 
 impl GroupSpec {
-    // TODO: Generate new group spec from safe primes
-
     /// Constructs a new group spec with security parameter k
     /// i.e. k is the bitsize of q = M
     pub fn new() -> GroupSpec {
-        GroupSpec {
-            p: NonZero::new(Nat::from(27013537258668108287_u128)).unwrap(),
-            q: NonZero::new(Nat::from(13506768629334054143_u64)).unwrap(),
-            alpha: Nat::from(16496305264446614492_u64),
-        }
+        // Generate random safe prime p = 2q + 1
+        // where q is a safe prime
+        let (p, q, alpha) = get_parameters();
+
+        GroupSpec { p, q, alpha }
+        // GroupSpec {
+        //     p: NonZero::new(Nat::from_u16(23)).unwrap(),
+        //     q: NonZero::new(Nat::from_u16(11)).unwrap(),
+        //     alpha: Nat::from_u16(2),
+        // }
     }
 
     /// Returns a random from Zq
@@ -31,58 +36,65 @@ impl GroupSpec {
     }
 }
 
-// TODO: This (below) works with num_bigint, requires rework for crypto_bigint. Hardcode for now
+// Generate a safe prime p = 2q + 1, where q is also a safe prime
+// and a generator alpha of Zp*
+fn get_parameters() -> (
+    NonZero<crypto_bigint::Uint<4>>,
+    NonZero<crypto_bigint::Uint<4>>,
+    crypto_bigint::Uint<4>,
+) {
+    let (p, q) = generate_safe_primes();
+    let alpha = generate_group_generator(p, q);
+    (p, q, alpha)
+}
 
-///// Sample random generator of Zp* assuming p = self is a safe prime
-/////
-///// We use the fact that alpha is a generator for Zp* iff
-///// alpha ^ ((p-1)/q) != 1 for every q divisor in p - 1 (Lemma
-///// 9.8 from the notes on cryptography by Ivan Damgaard)
-/////
-///// Since p is a safe prime, the only divisors of p - 1 are q
-///// and 2.
-///// fn generator_from_safe_prime(p: Nat) -> Nat {
-//     // Sample random x in Zp*
-//     // Since Zp* = {1, 2, ..., p-1} we do this by picking x at
-//     // random from Z(p-1) = {0, 1, ..., p-2} and adding one.
+// Generate a generator of Zp* using rejection sampling
+fn generate_group_generator(
+    p: NonZero<crypto_bigint::Uint<4>>,
+    q: NonZero<crypto_bigint::Uint<4>>,
+) -> crypto_bigint::Uint<4> {
+    let mut x = Nat::random_mod(&mut OsRng, &p);
+    // While x^q mod p != 1 try with a new random x
+    while pow_mod(&x, &q, &p) != Nat::ONE {
+        x = Nat::random_mod(&mut OsRng, &p);
+    }
 
-//     let mut x = Nat::random_mod(&mut OsRng, &p);
-//     let mut x = p.minus_one().rand_modulo().plus_one();
+    x
+}
 
-//     // q is the sophie germain prime associated with p
-//     let q = p.minus_one().div_two();
+// Generate a safe prime p = 2q + 1, where q is the associated Sophie Germain prime
+fn generate_safe_primes() -> (
+    NonZero<crypto_bigint::Uint<4>>,
+    NonZero<crypto_bigint::Uint<4>>,
+) {
+    let p: NonZero<crypto_bigint::Uint<4>> =
+        NonZero::new(generate_safe_prime(Option::None)).unwrap();
+    let qinit: crypto_bigint::Uint<4> = p
+        .wrapping_sub(&Nat::ONE)
+        .checked_div(&Nat::from(2_u32))
+        .unwrap();
+    let q = NonZero::new(qinit).unwrap();
+    (p, q)
+}
 
-//     let mut divisors = vec![2, q];
-//     // Loop while we still have divisors to check
+impl Default for GroupSpec {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
-//     loop {
-//         match divisors.pop() {
-//             Some(mut i) => {
-//                 // Compose x with itself i times and check that
-//                 // none of the compositions yield the neutral
-//                 // element, i.e. if x_clone == 1 at any time then
-//                 // x is not a generator of Zp* since ord(x) < p-1.
-//                 let mut x_clone = x;
-//                 while i != 1 && x_clone != 1 {
-//                     // Zp* is a multiplicative group
-//                     x_clone *= x;
-//                     // Reduce mod p to get back into the group
-//                     x_clone %= p;
-//                     i = i - 1;
-//                 }
-//                 // Assert that x ^ i != 1
-//                 if x_clone == 1 {
-//                     // x is not a generator, pick a new candidate
-//                     x = p.minus_one().rand_modulo().plus_one();
-//                     divisors = vec![2, q];
-//                 }
-//             }
-//             None => {
-//                 // In this case x ^ 2 % p != 1 and x ^ q % p != 1
-//                 // so x is a generator of Zp*. Break and return x.
-//                 break;
-//             }
-//         }
-//     }
-//     x
-// }
+// Test for alpha being a generator of Zp*
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nat::pow_mod;
+
+    #[test]
+    fn test_generator_from_safe_prime() {
+        let group = GroupSpec::new();
+        let alpha = group.alpha;
+        let raised = pow_mod(&alpha, &group.q, &group.p);
+
+        assert_eq!(raised, Nat::ONE)
+    }
+}
