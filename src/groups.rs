@@ -62,7 +62,7 @@ fn generate_group_generator(
     x
 }
 
-// Generate a safe prime p = 2q + 1, where q is also a safe prime
+// Generate a safe prime p = 2q + 1, where q is the associated Sophie Germain prime
 fn generate_safe_primes() -> (
     NonZero<crypto_bigint::Uint<4>>,
     NonZero<crypto_bigint::Uint<4>>,
