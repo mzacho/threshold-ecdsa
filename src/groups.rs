@@ -15,19 +15,12 @@ pub struct GroupSpec {
 }
 
 impl GroupSpec {
-    /// Constructs a new group spec with security parameter k
+    /// TODO: Constructs a new group spec with security parameter k
     /// i.e. k is the bitsize of q = M
     pub fn new() -> GroupSpec {
-        // Generate random safe prime p = 2q + 1
-        // where q is a safe prime
-        let (p, q, alpha) = get_parameters();
-
+        let (p, q) = generate_safe_primes();
+        let alpha = compute_group_generator(p, q);
         GroupSpec { p, q, alpha }
-        // GroupSpec {
-        //     p: NonZero::new(Nat::from_u16(23)).unwrap(),
-        //     q: NonZero::new(Nat::from_u16(11)).unwrap(),
-        //     alpha: Nat::from_u16(2),
-        // }
     }
 
     /// Returns a random from Zq
@@ -36,20 +29,8 @@ impl GroupSpec {
     }
 }
 
-// Generate a safe prime p = 2q + 1, where q is also a safe prime
-// and a generator alpha of Zp*
-fn get_parameters() -> (
-    NonZero<crypto_bigint::Uint<4>>,
-    NonZero<crypto_bigint::Uint<4>>,
-    crypto_bigint::Uint<4>,
-) {
-    let (p, q) = generate_safe_primes();
-    let alpha = generate_group_generator(p, q);
-    (p, q, alpha)
-}
-
-// Generate a generator of Zp* using rejection sampling
-fn generate_group_generator(
+/// Generate a generator of Zp* using rejection sampling
+fn compute_group_generator(
     p: NonZero<crypto_bigint::Uint<4>>,
     q: NonZero<crypto_bigint::Uint<4>>,
 ) -> crypto_bigint::Uint<4> {
@@ -58,11 +39,10 @@ fn generate_group_generator(
     while pow_mod(&x, &q, &p) != Nat::ONE {
         x = Nat::random_mod(&mut OsRng, &p);
     }
-
     x
 }
 
-// Generate a safe prime p = 2q + 1, where q is the associated Sophie Germain prime
+/// Generate a safe prime p = 2q + 1, where q is the associated Sophie Germain prime
 fn generate_safe_primes() -> (
     NonZero<crypto_bigint::Uint<4>>,
     NonZero<crypto_bigint::Uint<4>>,
@@ -83,7 +63,6 @@ impl Default for GroupSpec {
     }
 }
 
-// Test for alpha being a generator of Zp*
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -93,6 +72,7 @@ mod tests {
     fn test_generator_from_safe_prime() {
         let group = GroupSpec::new();
         let alpha = group.alpha;
+        // Test for alpha being a generator of Zp*
         let raised = pow_mod(&alpha, &group.q, &group.p);
 
         assert_eq!(raised, Nat::ONE)

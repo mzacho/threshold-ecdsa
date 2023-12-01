@@ -6,7 +6,7 @@ use crate::{
     node::Node,
 };
 
-/// An additive share [s] = (x, y) where x + y mod m = s
+/// An additive share [s] = (x, y) where x + y mod M = s
 #[derive(Debug, Clone)]
 pub struct Shares {
     pub x: Nat,
