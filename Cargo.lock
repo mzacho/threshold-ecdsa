@@ -260,7 +260,6 @@ dependencies = [
  "ecdsa",
  "elliptic-curve",
  "getrandom",
- "lazy_static",
  "rand",
  "sha2",
 ]

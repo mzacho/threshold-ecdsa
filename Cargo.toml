@@ -9,7 +9,6 @@ edition = "2021"
 getrandom = { version = "0.2" }
 crypto-bigint = { version = "*", features = ["rand"] }
 rand = "0.8.5"
-lazy_static = "*"
 crypto-primes = "*"
 sha2 = "*"
 elliptic-curve = "0.13.8"
