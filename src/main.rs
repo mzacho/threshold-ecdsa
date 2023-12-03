@@ -1,12 +1,13 @@
 use std::env::args;
 
 mod circuit;
+mod curve;
+mod ecdsa;
 mod groups;
 mod nat;
 mod node;
 mod schnorr;
 mod shares;
-mod ecdsa;
 
 const ECDSA: &str = "ecdsa";
 const SCHNORR: &str = "schnorr";

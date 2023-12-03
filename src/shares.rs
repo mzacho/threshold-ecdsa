@@ -2,6 +2,7 @@ use core::ops::{Add, Mul};
 use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
 
 use crate::{
+    curve::Point,
     nat::{mul_mod, Nat},
     node::Node,
 };
@@ -12,6 +13,11 @@ pub struct Shares {
     pub x: Nat,
     pub y: Nat,
     pub m: NonZero<Nat>,
+}
+
+pub struct CurveShares {
+    pub x: Point,
+    pub y: Point,
 }
 
 impl Shares {
