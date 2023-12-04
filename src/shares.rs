@@ -119,7 +119,7 @@ impl Add for CurveShares {
 impl Add<Scalar> for CurveShares {
     type Output = Self;
 
-    fn add(self, rhs: Scalar) -> Self::Output {
+    fn add(self, _: Scalar) -> Self::Output {
         todo!() // don't know if we need this?
     }
 }
@@ -138,7 +138,7 @@ impl Mul<Scalar> for CurveShares {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::nat::mul_mod;
+    use crate::{curve::ORDER, nat::mul_mod};
 
     #[test]
     fn test_shares_new() {
@@ -181,14 +181,36 @@ mod test {
 
     /// Test that Convert([a] + [b])
     ///         = Convert([a]) + Convert([b])
+    ///
+    /// test with a small modulus, the sum is not reduced
     #[test]
-    fn test_add_shares_is_homomorphic_wrt_convert_to_curve() {
+    fn test_add_shares_is_homomorphic_wrt_convert_to_curve1() {
         let m = NonZero::new(Nat::from(522_u128)).unwrap();
-        let x = Nat::from(42_u32);
-        let s1 = Shares::new(&x, m.clone());
+        let s1 = Shares {
+            x: Nat::from(426_u32),
+            y: Nat::from(42_u32),
+            m,
+        };
 
-        let y = Nat::from(120_u32);
-        let s2 = Shares::new(&y, m.clone());
+        let s2 = Shares {
+            x: Nat::from(12_u32),
+            y: Nat::from(266_u32),
+            m,
+        };
+
+        let s1c = CurveShares::from(s1.clone());
+        let s2c = CurveShares::from(s2.clone());
+
+        assert_eq!(s1c + s2c, CurveShares::from(s1 + s2));
+    }
+
+    /// test where the modulus is the actual order of the curve
+    /// and the shares are generated at random
+    #[test]
+    fn test_add_shares_is_homomorphic_wrt_convert_to_curve2() {
+        let m = NonZero::new(ORDER).unwrap();
+        let s1 = Shares::new(&Nat::from_u8(13_u8), m);
+        let s2 = Shares::new(&Nat::from_u8(42_u8), m);
 
         let s1c = CurveShares::from(s1.clone());
         let s2c = CurveShares::from(s2.clone());
