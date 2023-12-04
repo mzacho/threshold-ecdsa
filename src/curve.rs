@@ -1,14 +1,11 @@
 use crate::nat::Nat;
-use elliptic_curve::ProjectivePoint;
+use elliptic_curve::{ProjectivePoint, Curve as EC_CURVE};
 
 /// The curve with parameters used by bitcoins pke
 pub type Curve = k256::Secp256k1;
 
-/// Order of the curve in hexadecimal.
-const ORDER_HEX: &str = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
-
 /// Order of the curve.
-pub const ORDER: Nat = Nat::from_be_hex(ORDER_HEX);
+pub const ORDER: Nat = Curve::ORDER;
 
 /// A point on the curve
 pub type Point = ProjectivePoint<Curve>;
