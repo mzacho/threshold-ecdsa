@@ -1,8 +1,10 @@
 use core::ops::{Add, Mul};
 use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
+use elliptic_curve::ops::MulByGenerator;
+use elliptic_curve::scalar::FromUintUnchecked;
 
 use crate::{
-    curve::Point,
+    curve::{Point, Scalar},
     nat::{mul_mod, Nat},
     node::Node,
 };
@@ -13,11 +15,6 @@ pub struct Shares {
     pub x: Nat,
     pub y: Nat,
     pub m: NonZero<Nat>,
-}
-
-pub struct CurveShares {
-    pub x: Point,
-    pub y: Point,
 }
 
 impl Shares {
@@ -87,13 +84,58 @@ impl Mul<Nat> for Shares {
     }
 }
 
-// impl BitAnd<&Nat> for &Shares {
-//     type Output = Shares;
+#[derive(Debug, PartialEq)]
+pub struct CurveShares {
+    pub x: Point,
+    pub y: Point,
+}
 
-//     fn bitand(self, rhs: &Nat) -> Self::Output {
-//         self.mult(rhs)
-//     }
-// }
+impl CurveShares {
+
+    /// Convert shares of a value "a" to a share of the
+    /// representation of the point on the curve for the
+    /// value "a"
+    fn from(s: Shares) -> Self {
+        let x = Scalar::from_uint_unchecked(s.x);
+        let y = Scalar::from_uint_unchecked(s.y);
+
+        let xi = Point::mul_by_generator(&x);
+        let yi = Point::mul_by_generator(&y);
+
+        CurveShares { x: xi, y: yi }
+    }
+}
+
+impl Add for CurveShares {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        CurveShares{
+            x: self.x + rhs.x,
+            y: self.y + rhs.y
+        }
+    }
+}
+
+impl Add<Scalar> for CurveShares {
+    type Output = Self;
+
+    fn add(self, rhs: Scalar) -> Self::Output {
+        todo!() // don't know if we need this?
+    }
+}
+
+impl Mul<Scalar> for CurveShares {
+    type Output = Self;
+
+    fn mul(self, rhs: Scalar) -> Self::Output {
+        CurveShares {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod test {
@@ -137,5 +179,22 @@ mod test {
 
         let mul_share_constant = shares * y.clone();
         assert_eq!(mul_share_constant.open(), mul_mod(&y, &x, &m));
+    }
+
+    /// Test that Convert([a] + [b])
+    ///         = Convert([a]) + Convert([b])
+    #[test]
+    fn test_add_shares_is_homomorphic_wrt_convert_to_curve() {
+        let m = NonZero::new(Nat::from(522_u128)).unwrap();
+        let x = Nat::from(42_u32);
+        let s1 = Shares::new(&x, m.clone());
+
+        let y = Nat::from(120_u32);
+        let s2 = Shares::new(&y, m.clone());
+
+        let s1c = CurveShares::from(s1.clone());
+        let s2c = CurveShares::from(s2.clone());
+
+        assert_eq!(s1c + s2c, CurveShares::from(s1 + s2));
     }
 }

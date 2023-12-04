@@ -11,5 +11,5 @@ crypto-bigint = { version = "*", features = ["rand"] }
 rand = "0.8.5"
 crypto-primes = "*"
 sha2 = "*"
-elliptic-curve = "0.13.8"
+elliptic-curve = { version = "*", features = ["arithmetic"] }
 p224 = { version = "*", features = ["ecdsa", "arithmetic"] }
