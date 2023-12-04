@@ -12,4 +12,4 @@ rand = "0.8.5"
 crypto-primes = "*"
 sha2 = "*"
 elliptic-curve = { version = "*", features = ["arithmetic"] }
-p224 = { version = "*", features = ["ecdsa", "arithmetic"] }
+k256 = { version = "*", features = ["arithmetic"] }

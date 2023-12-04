@@ -1,10 +1,10 @@
 use elliptic_curve::ProjectivePoint;
 
-pub type Curve = p224::NistP224;
+pub type Curve = k256::Secp256k1;
 
 pub type Point = ProjectivePoint<Curve>;
 
-pub type Scalar = p224::Scalar;
+pub type Scalar = k256::Scalar;
 
 #[cfg(test)]
 mod test {

@@ -1,9 +1,3 @@
-use elliptic_curve::ops::MulByGenerator;
-use elliptic_curve::scalar::FromUintUnchecked;
-
-use crate::curve::{Point, Scalar};
-use crate::shares::{CurveShares, Shares};
-
 // pub fn run_ecdsa() {
 //     todo!()
 // }
@@ -14,8 +8,8 @@ use crate::shares::{CurveShares, Shares};
 
 #[cfg(test)]
 mod tests {
-    use crypto_bigint::{rand_core::OsRng};
-    use p224::ecdsa::{
+    use crypto_bigint::rand_core::OsRng;
+    use k256::ecdsa::{
         signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey,
     };
 
