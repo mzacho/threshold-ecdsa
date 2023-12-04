@@ -7,7 +7,7 @@ use crate::{
     circuit::{push_node, Circuit},
     groups::GroupSpec,
     nat::{mul_mod, pow_mod, Nat},
-    node::{Const, Node},
+    node::{Const, ConstLiteral, Node},
     shares::NatShares,
 };
 
@@ -57,7 +57,7 @@ pub fn run_schnorr(m: Nat, verbose: bool) {
     let result = circuit.eval();
 
     // Open the result to get the second component z of the signature
-    let z = result.open();
+    let z = result.open().nat();
 
     // Compute beta inverted in mod p
     let (beta_inv, choice) = beta.inv_mod(&group.p);
@@ -123,7 +123,7 @@ pub fn schnorr_circuit(r: NatShares, sk: NatShares, e: Nat) -> Circuit {
     let in_r_id = push_node(&mut g, in_r);
 
     // Compute z = r + e * sk
-    let mul_e = Node::mul_unary(in_sk_id, Const::Literal(e));
+    let mul_e = Node::mul_unary(in_sk_id, Const::Literal(ConstLiteral::Nat(e)));
     let mul_e_id = push_node(&mut g, mul_e);
 
     // Add r and e * sk

@@ -6,12 +6,39 @@ use elliptic_curve::scalar::FromUintUnchecked;
 use crate::{
     curve::{Point, Scalar},
     nat::{mul_mod, Nat},
-    node::Node,
+    node::{ConstLiteral, Node},
 };
 
+#[derive(Debug, Clone)]
 pub enum Shares {
     Nat(NatShares),
     Curve(CurveShares),
+}
+
+impl Shares {
+    pub fn nat(self) -> NatShares {
+        if let Self::Nat(s) = self {
+            s
+        } else {
+            panic!("not a nat")
+        }
+    }
+
+    // pub fn point(self) -> CurveShares {
+    //     if let Self::Curve(s) = self {
+    //         s
+    //     } else {
+    //         panic!("not a point")
+    //     }
+    // }
+
+    /// Reconstruct the secret from the shares
+    pub fn open(self) -> ConstLiteral {
+        match self {
+            Shares::Nat(self_) => ConstLiteral::Nat(self_.x.add_mod(&self_.y, &self_.m)),
+            Shares::Curve(self_) => ConstLiteral::Point(self_.x + &self_.y),
+        }
+    }
 }
 
 /// An additive share [s] = (x, y) where x + y mod M = s
@@ -45,14 +72,26 @@ impl NatShares {
         NatShares { x, y, m }
     }
 
+    /// Transform Shares to input Node
+    pub fn as_in_node(self) -> Node {
+        Node::in_(self)
+    }
+
     /// Reconstruct the secret from the shares
     pub fn open(self) -> Nat {
         self.x.add_mod(&self.y, &self.m)
     }
+}
 
-    /// Transform Shares to input Node
-    pub fn as_in_node(self) -> Node {
-        Node::in_(self)
+impl Add for Shares {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Shares::Nat(self_), Shares::Nat(rhs)) => Shares::Nat(self_ + rhs),
+            (Shares::Curve(self_), Shares::Curve(rhs)) => Shares::Curve(self_ + rhs),
+            _ => panic!("cannot add shares of differet types"),
+        }
     }
 }
 
@@ -89,7 +128,7 @@ impl Mul<Nat> for NatShares {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct CurveShares {
     pub x: Point,
     pub y: Point,

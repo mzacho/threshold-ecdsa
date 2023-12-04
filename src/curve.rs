@@ -1,5 +1,5 @@
 use crate::nat::Nat;
-use elliptic_curve::{ProjectivePoint, Curve as EC_CURVE};
+use elliptic_curve::{Curve as EC_CURVE, ProjectivePoint};
 
 /// The curve with parameters used by bitcoins pke
 pub type Curve = k256::Secp256k1;
