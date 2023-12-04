@@ -9,23 +9,28 @@ use crate::{
     node::Node,
 };
 
+pub enum Shares {
+    Nat(NatShares),
+    Curve(CurveShares),
+}
+
 /// An additive share [s] = (x, y) where x + y mod M = s
 #[derive(Debug, Clone)]
-pub struct Shares {
+pub struct NatShares {
     pub x: Nat,
     pub y: Nat,
     pub m: NonZero<Nat>,
 }
 
-impl Shares {
+impl NatShares {
     /// Instantiate a new share with the given `x` and `y` values
     pub fn from(x: Nat, y: Nat, m: NonZero<Nat>) -> Self {
-        Shares { x, y, m }
+        NatShares { x, y, m }
     }
 
     /// Create a share of a constant `c`
     /// Precondition: 0 <= c < m
-    pub fn new(c: &Nat, m: NonZero<Nat>) -> Shares {
+    pub fn new(c: &Nat, m: NonZero<Nat>) -> NatShares {
         assert!(c < &m);
 
         // Pick random from Zm
@@ -37,7 +42,7 @@ impl Shares {
             c.sub_mod(&x, &m)
         };
 
-        Shares { x, y, m }
+        NatShares { x, y, m }
     }
 
     /// Reconstruct the secret from the shares
@@ -51,12 +56,12 @@ impl Shares {
     }
 }
 
-impl Add for Shares {
+impl Add for NatShares {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
         assert!(self.m == rhs.m);
-        Shares::from(
+        NatShares::from(
             self.x.add_mod(&rhs.x, &self.m),
             self.y.add_mod(&rhs.y, &self.m),
             self.m,
@@ -64,19 +69,19 @@ impl Add for Shares {
     }
 }
 
-impl Add<Nat> for Shares {
+impl Add<Nat> for NatShares {
     type Output = Self;
 
     fn add(self, rhs: Nat) -> Self::Output {
-        Shares::from(self.x.add_mod(&rhs, &self.m), self.y, self.m)
+        NatShares::from(self.x.add_mod(&rhs, &self.m), self.y, self.m)
     }
 }
 
-impl Mul<Nat> for Shares {
+impl Mul<Nat> for NatShares {
     type Output = Self;
 
     fn mul(self, rhs: Nat) -> Self::Output {
-        Shares::from(
+        NatShares::from(
             mul_mod(&self.x, &rhs, &self.m),
             mul_mod(&self.y, &rhs, &self.m),
             self.m,
@@ -94,7 +99,7 @@ impl CurveShares {
     /// Convert shares of a value "a" to a share of the
     /// representation of the point on the curve for the
     /// value "a"
-    fn from(s: Shares) -> Self {
+    fn from(s: NatShares) -> Self {
         let x = Scalar::from_uint_unchecked(s.x);
         let y = Scalar::from_uint_unchecked(s.y);
 
@@ -144,7 +149,7 @@ mod test {
     fn test_shares_new() {
         let m = NonZero::new(Nat::from(1337_u128)).unwrap();
         let x = Nat::new(Nat::ONE.into());
-        let shares = Shares::new(&x, m);
+        let shares = NatShares::new(&x, m);
 
         assert_eq!(shares.open(), x);
     }
@@ -153,10 +158,10 @@ mod test {
     fn test_shares_add() {
         let m = NonZero::new(Nat::from(150_u128)).unwrap();
         let x = Nat::from(42_u32);
-        let s1 = Shares::new(&x, m.clone());
+        let s1 = NatShares::new(&x, m.clone());
 
         let y = Nat::from(120_u32);
-        let s2 = Shares::new(&y, m.clone());
+        let s2 = NatShares::new(&y, m.clone());
 
         let s3 = s1.clone() + x.clone();
         assert_eq!(s3.open(), x.add_mod(&x, &m));
@@ -170,7 +175,7 @@ mod test {
     fn test_shares_mul() {
         let m = NonZero::new(Nat::from_u32(51)).unwrap();
         let x = Nat::from_u32(43);
-        let shares = Shares::new(&x, m.clone());
+        let shares = NatShares::new(&x, m.clone());
         assert_eq!(shares.clone().open(), x);
 
         let y = Nat::from_u32(13);
@@ -186,13 +191,13 @@ mod test {
     #[test]
     fn test_add_shares_is_homomorphic_wrt_convert_to_curve1() {
         let m = NonZero::new(Nat::from(522_u128)).unwrap();
-        let s1 = Shares {
+        let s1 = NatShares {
             x: Nat::from(426_u32),
             y: Nat::from(42_u32),
             m,
         };
 
-        let s2 = Shares {
+        let s2 = NatShares {
             x: Nat::from(12_u32),
             y: Nat::from(266_u32),
             m,
@@ -209,8 +214,8 @@ mod test {
     #[test]
     fn test_add_shares_is_homomorphic_wrt_convert_to_curve2() {
         let m = NonZero::new(ORDER).unwrap();
-        let s1 = Shares::new(&Nat::from_u8(13_u8), m);
-        let s2 = Shares::new(&Nat::from_u8(42_u8), m);
+        let s1 = NatShares::new(&Nat::from_u8(13_u8), m);
+        let s2 = NatShares::new(&Nat::from_u8(42_u8), m);
 
         let s1c = CurveShares::from(s1.clone());
         let s2c = CurveShares::from(s2.clone());

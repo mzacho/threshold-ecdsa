@@ -8,7 +8,7 @@ use crate::{
     groups::GroupSpec,
     nat::{mul_mod, pow_mod, Nat},
     node::{Const, Node},
-    shares::Shares,
+    shares::NatShares,
 };
 
 // Run a schnorr protocol
@@ -41,14 +41,14 @@ pub fn run_schnorr(m: Nat, verbose: bool) {
     let e = compute_e(c, m);
 
     // Create the share for the random value r
-    let r_shares = Shares {
+    let r_shares = NatShares {
         x: r1,
         y: r2,
         m: group.q,
     };
 
     // Create the share for the secret key
-    let sk_share = Shares::new(&sk, group.q);
+    let sk_share = NatShares::new(&sk, group.q);
 
     // Construct net schnorr circuit
     let circuit = schnorr_circuit(r_shares, sk_share, e);
@@ -107,7 +107,7 @@ pub fn read_args_message(args: env::Args) -> Nat {
 }
 
 // Schnorr circuit
-pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
+pub fn schnorr_circuit(r: NatShares, sk: NatShares, e: Nat) -> Circuit {
     // Check that the modulus of the shares are the same
     assert!(r.m == sk.m);
     let mut g: Circuit = Circuit {

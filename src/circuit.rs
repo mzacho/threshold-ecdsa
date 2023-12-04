@@ -5,7 +5,7 @@ use crypto_bigint::{NonZero, RandomMod};
 
 use crate::nat::{mul_mod, Nat};
 use crate::node::{Const, Gate, Node, NodeId};
-use crate::shares::Shares;
+use crate::shares::NatShares;
 
 /// `Circuit` represents the circuit used in the BeDOZa protocol for
 /// passively secure two-party computation.
@@ -38,7 +38,7 @@ impl Circuit {
     ///
     /// It does so by iterating over all nodes, and propagating values from
     /// parents to children with respect to the operation of the current node.
-    pub fn eval(self) -> Shares {
+    pub fn eval(self) -> NatShares {
         let mut env = Env {
             env: HashMap::new(),
             modulus: &self.modulus,
@@ -272,9 +272,9 @@ impl Circuit {
 /// Invariant:
 ///   (u.open() * v.open()).mod_floor(&M) = w.open()
 pub struct Rands {
-    pub u: Shares,
-    pub v: Shares,
-    pub w: Shares,
+    pub u: NatShares,
+    pub v: NatShares,
+    pub w: NatShares,
 }
 
 /// Constructs new secret shares of u, v, w such that u * v = w.
@@ -289,8 +289,8 @@ pub fn deal_rands(modulus: &NonZero<Nat>) -> Rands {
     let vy: Nat = Nat::random_mod(&mut OsRng, &modulus);
     let wx: Nat = Nat::random_mod(&mut OsRng, &modulus);
 
-    let u: Shares = Shares::from(ux.clone(), uy.clone(), modulus.clone());
-    let v: Shares = Shares::from(vx.clone(), vy.clone(), modulus.clone());
+    let u: NatShares = NatShares::from(ux.clone(), uy.clone(), modulus.clone());
+    let v: NatShares = NatShares::from(vx.clone(), vy.clone(), modulus.clone());
 
     // Compute u * v mod m
     let k1 = mul_mod(&vx, &ux, &modulus);
@@ -308,7 +308,7 @@ pub fn deal_rands(modulus: &NonZero<Nat>) -> Rands {
         uv.sub_mod(&wx, &modulus)
     };
 
-    let w = Shares::from(wx, wy, modulus.clone());
+    let w = NatShares::from(wx, wy, modulus.clone());
     Rands { u, v, w }
 }
 

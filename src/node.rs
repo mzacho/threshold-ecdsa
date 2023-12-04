@@ -2,7 +2,7 @@ use crypto_bigint::NonZero;
 use getrandom::getrandom;
 use std::cell::RefCell;
 
-use crate::{nat::Nat, shares::Shares};
+use crate::{nat::Nat, shares::NatShares};
 
 #[derive(Debug, Clone)]
 pub enum Gate {
@@ -99,7 +99,7 @@ impl Node {
         }
     }
 
-    pub fn in_(s: Shares) -> Self {
+    pub fn in_(s: NatShares) -> Self {
         Node {
             value: RefCell::new(Some(s)),
             ..Node::default()
@@ -134,7 +134,7 @@ pub fn as_nodes(arr: [Nat; 3], modulus: NonZero<Nat>) -> [Node; 3] {
         // Then assign Alices share to r XOR b
         // and Bobs share to r
 
-        let s = Shares::from(r.clone().add_mod(b, &modulus), r, modulus);
+        let s = NatShares::from(r.clone().add_mod(b, &modulus), r, modulus);
 
         *nodes[i].value.borrow_mut() = Some(s);
     }
@@ -152,7 +152,7 @@ mod tests {
         circuit::{deal_rands, push_node, Circuit, Rands},
         nat::{mul_mod, Nat},
         node::{Const, Node},
-        shares::Shares,
+        shares::NatShares,
     };
 
     fn single_mul_gate(x: Node, y: Node) -> Circuit {
@@ -237,8 +237,8 @@ mod tests {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
                             let m = NonZero::new(Nat::from(3_u32)).unwrap();
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
-                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
+                            let x: NatShares = NatShares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
                             let mut g: Circuit =
                                 single_mul_gate(Node::in_(x.clone()), Node::in_(y.clone()));
@@ -262,8 +262,8 @@ mod tests {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
                             let m = NonZero::new(Nat::from(3_u32)).unwrap();
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
-                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
+                            let x: NatShares = NatShares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
                             let mut g =
                                 and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
@@ -290,8 +290,8 @@ mod tests {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
                             let m = NonZero::new(Nat::from(3_u32)).unwrap();
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
-                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
+                            let x: NatShares = NatShares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
                             let mut g =
                                 x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
@@ -319,8 +319,8 @@ mod tests {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
                             let m = NonZero::new(Nat::from(3_u32)).unwrap();
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
-                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
+                            let x: NatShares = NatShares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
                             let mut g =
                                 x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
@@ -348,8 +348,8 @@ mod tests {
                     [Nat::ONE, Nat::ZERO].into_iter().for_each(|b3: Nat| {
                         for b4 in [Nat::ONE, Nat::ZERO] {
                             let m = NonZero::new(Nat::from(3_u32)).unwrap();
-                            let x: Shares = Shares::from(b1.clone(), b2.clone(), m.clone());
-                            let y: Shares = Shares::from(b3.clone(), b4, m.clone());
+                            let x: NatShares = NatShares::from(b1.clone(), b2.clone(), m.clone());
+                            let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
                             let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
                             g.transform_and_gates();
