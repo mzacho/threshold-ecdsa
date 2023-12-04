@@ -12,7 +12,7 @@ use crate::{
 #[derive(Debug, Clone)]
 pub enum Shares {
     Nat(NatShares),
-    Curve(CurveShares),
+    Point(PointShares),
 }
 
 impl Shares {
@@ -36,7 +36,7 @@ impl Shares {
     pub fn open(self) -> ConstLiteral {
         match self {
             Shares::Nat(self_) => ConstLiteral::Nat(self_.x.add_mod(&self_.y, &self_.m)),
-            Shares::Curve(self_) => ConstLiteral::Point(self_.x + &self_.y),
+            Shares::Point(self_) => ConstLiteral::Point(self_.x + &self_.y),
         }
     }
 }
@@ -89,7 +89,7 @@ impl Add for Shares {
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Shares::Nat(self_), Shares::Nat(rhs)) => Shares::Nat(self_ + rhs),
-            (Shares::Curve(self_), Shares::Curve(rhs)) => Shares::Curve(self_ + rhs),
+            (Shares::Point(self_), Shares::Point(rhs)) => Shares::Point(self_ + rhs),
             _ => panic!("cannot add shares of differet types"),
         }
     }
@@ -129,12 +129,12 @@ impl Mul<Nat> for NatShares {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct CurveShares {
+pub struct PointShares {
     pub x: Point,
     pub y: Point,
 }
 
-impl CurveShares {
+impl PointShares {
     /// Convert shares of a value "a" to a share of the
     /// representation of the point on the curve for the
     /// value "a"
@@ -145,22 +145,22 @@ impl CurveShares {
         let xi = Point::mul_by_generator(&x);
         let yi = Point::mul_by_generator(&y);
 
-        CurveShares { x: xi, y: yi }
+        PointShares { x: xi, y: yi }
     }
 }
 
-impl Add for CurveShares {
+impl Add for PointShares {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        CurveShares {
+        PointShares {
             x: self.x + rhs.x,
             y: self.y + rhs.y,
         }
     }
 }
 
-impl Add<Scalar> for CurveShares {
+impl Add<Scalar> for PointShares {
     type Output = Self;
 
     fn add(self, _: Scalar) -> Self::Output {
@@ -168,11 +168,11 @@ impl Add<Scalar> for CurveShares {
     }
 }
 
-impl Mul<Scalar> for CurveShares {
+impl Mul<Scalar> for PointShares {
     type Output = Self;
 
     fn mul(self, rhs: Scalar) -> Self::Output {
-        CurveShares {
+        PointShares {
             x: self.x * rhs,
             y: self.y * rhs,
         }
@@ -242,10 +242,10 @@ mod test {
             m,
         };
 
-        let s1c = CurveShares::from(s1.clone());
-        let s2c = CurveShares::from(s2.clone());
+        let s1c = PointShares::from(s1.clone());
+        let s2c = PointShares::from(s2.clone());
 
-        assert_eq!(s1c + s2c, CurveShares::from(s1 + s2));
+        assert_eq!(s1c + s2c, PointShares::from(s1 + s2));
     }
 
     /// test where the modulus is the actual order of the curve
@@ -256,9 +256,9 @@ mod test {
         let s1 = NatShares::new(&Nat::from_u8(13_u8), m);
         let s2 = NatShares::new(&Nat::from_u8(42_u8), m);
 
-        let s1c = CurveShares::from(s1.clone());
-        let s2c = CurveShares::from(s2.clone());
+        let s1c = PointShares::from(s1.clone());
+        let s2c = PointShares::from(s2.clone());
 
-        assert_eq!(s1c + s2c, CurveShares::from(s1 + s2));
+        assert_eq!(s1c + s2c, PointShares::from(s1 + s2));
     }
 }
