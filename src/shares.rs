@@ -91,7 +91,6 @@ pub struct CurveShares {
 }
 
 impl CurveShares {
-
     /// Convert shares of a value "a" to a share of the
     /// representation of the point on the curve for the
     /// value "a"
@@ -110,9 +109,9 @@ impl Add for CurveShares {
     type Output = Self;
 
     fn add(self, rhs: Self) -> Self::Output {
-        CurveShares{
+        CurveShares {
             x: self.x + rhs.x,
-            y: self.y + rhs.y
+            y: self.y + rhs.y,
         }
     }
 }
@@ -135,7 +134,6 @@ impl Mul<Scalar> for CurveShares {
         }
     }
 }
-
 
 #[cfg(test)]
 mod test {

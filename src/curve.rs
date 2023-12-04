@@ -10,8 +10,8 @@ pub type Scalar = k256::Scalar;
 mod test {
     use super::*;
     use crate::nat::Nat;
-    use elliptic_curve::scalar::FromUintUnchecked;
     use elliptic_curve::ops::MulByGenerator;
+    use elliptic_curve::scalar::FromUintUnchecked;
 
     #[test]
     fn test_compare_scalars() {
