@@ -26,8 +26,7 @@ pub fn user_independent_preprocessing(modulus: &NonZero<Nat>) -> (PointShares, N
     let (c_inv, c_inv_exists) = c.inv_mod(modulus);
 
     // Define <k> <- Convert([b] * c_inv)
-    let should_panic: bool = c_inv_exists.into();
-    if should_panic == false {
+    if !bool::from(c_inv_exists) {
         panic!("c inverse does not exist")
     }
 
