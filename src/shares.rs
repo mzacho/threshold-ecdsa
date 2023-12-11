@@ -138,7 +138,7 @@ impl PointShares {
     /// Convert shares of a value "a" to a share of the
     /// representation of the point on the curve for the
     /// value "a"
-    fn from(s: NatShares) -> Self {
+    pub fn from(s: NatShares) -> Self {
         let x = Scalar::from_uint_unchecked(s.x);
         let y = Scalar::from_uint_unchecked(s.y);
 
