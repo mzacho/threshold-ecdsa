@@ -1,13 +1,11 @@
 use std::env;
 
+use crypto_bigint::generic_array::GenericArray;
 use crypto_bigint::{Encoding, NonZero};
 use elliptic_curve::{point::AffineCoordinates, FieldBytesEncoding};
-use k256::ecdsa::{signature::Signer, Signature, SigningKey};
+use k256::ecdsa::{signature::Verifier, VerifyingKey};
+use k256::ecdsa::{Signature, SigningKey};
 use k256::AffinePoint;
-use k256::{
-    ecdsa::{signature::Verifier, VerifyingKey},
-    EncodedPoint,
-};
 
 use sha2::{Digest, Sha256};
 
@@ -57,11 +55,10 @@ pub fn run_ecdsa(m: Nat) {
     let signing_key = SigningKey::from_slice(&sk.to_be_bytes()).unwrap();
 
     let verifying_key = VerifyingKey::from(&signing_key); // Serialize with `::to_encoded_point()`
+    let signature = Signature::from_bytes(GenericArray::from_slice(&s.to_be_bytes()));
+    println!("signature: {:?}", signature);
     assert!(verifying_key
-        .verify(
-            &m.to_be_bytes(),
-            &Signature::from_der(&s.to_be_bytes()).unwrap()
-        )
+        .verify(&m.to_be_bytes(), &signature.unwrap())
         .is_ok());
 }
 
@@ -89,7 +86,7 @@ fn user_independent_preprocessing(modulus: &NonZero<Nat>) -> (PointShares, NatSh
 
     let k_point_share = PointShares::from(product);
 
-    return (k_point_share, k_inv);
+    (k_point_share, k_inv)
 }
 
 /// Generate circuit for ECDSA (Securing DNSSEC Keys via Threshold ECDSA From Generic MPC, page 11)
@@ -143,7 +140,7 @@ fn ecdsa_circuit(
     let s = Node::add(mul_message_k_inv_id, mul_r_x_sk_prime_id);
     push_node(&mut circuit, s);
 
-    return (circuit, r_x);
+    (circuit, r_x)
 }
 
 /// Compute H(m) = sha256(m)

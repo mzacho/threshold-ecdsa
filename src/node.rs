@@ -134,12 +134,12 @@ impl Node {
         }
     }
 
-    pub fn in_point(s: PointShares) -> Self {
-        Node {
-            value: RefCell::new(Some(Shares::Point(s))),
-            ..Node::default()
-        }
-    }
+    // pub fn in_point(s: PointShares) -> Self {
+    //     Node {
+    //         value: RefCell::new(Some(Shares::Point(s))),
+    //         ..Node::default()
+    //     }
+    // }
 }
 
 /// Converts an array of boolean values, representing the
