@@ -1,10 +1,17 @@
+use std::env;
+
 use crypto_bigint::{Encoding, NonZero};
 use elliptic_curve::{point::AffineCoordinates, FieldBytesEncoding};
+use k256::ecdsa::{signature::Signer, Signature, SigningKey};
 use k256::AffinePoint;
+use k256::{
+    ecdsa::{signature::Verifier, VerifyingKey},
+    EncodedPoint,
+};
+
 use sha2::{Digest, Sha256};
 
-// use crypto_bigint::Encoding;
-
+use crate::groups::GroupSpec;
 use crate::{
     circuit::{deal_rands, push_node, Circuit, Rands},
     nat::Nat,
@@ -13,35 +20,49 @@ use crate::{
 };
 
 /// Run a ECDSA protocol
-/// 
+///
 /// Uses the protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
-/// 
+///
 /// Steps:
 /// 1. User independent preprocessing
 /// 2. Generate circuit
 /// 3. Evaluate circuit
 /// 4. Verify signature from evaluated circuit
 /// 5. PROFIT!
-pub fn run_ecdsa(m: Nat, sk: Nat, modulus: NonZero<Nat>) -> (Nat, Nat) {
+pub fn run_ecdsa(m: Nat) {
+    // Create the group to work in
+    let group = GroupSpec::new();
+
+    // Generate a secret key
+    let sk = group.rand_exp();
+
     // User independent preprocessing
-    let preprocessed_tuple = user_independent_preprocessing(&modulus);
+    let preprocessed_tuple = user_independent_preprocessing(&group.p);
 
     // Share key
-    let sk_shared = NatShares::new(&sk, modulus);
+    let sk_shared = NatShares::new(&sk, group.p);
 
     // Generate circuit
-    let (circuit, r_x) = ecdsa_circuit(m, sk_shared, preprocessed_tuple);
+    let (mut circuit, r_x) = ecdsa_circuit(m, sk_shared, preprocessed_tuple);
+
+    // Convert mul gates
+    circuit.transform_mul_gates();
 
     // Evaluate circuit, return shared `s`
     let s_shared = circuit.eval();
 
     let s = s_shared.open().nat();
 
-    // Output (r_x, s)
-    let output = (r_x, s);
-
     // Verify signature
-    todo!();
+    let signing_key = SigningKey::from_slice(&sk.to_be_bytes()).unwrap();
+
+    let verifying_key = VerifyingKey::from(&signing_key); // Serialize with `::to_encoded_point()`
+    assert!(verifying_key
+        .verify(
+            &m.to_be_bytes(),
+            &Signature::from_der(&s.to_be_bytes()).unwrap()
+        )
+        .is_ok());
 }
 
 /// Generate tuple (<k>, [k_inv])
@@ -137,6 +158,12 @@ fn hash_message(m: Nat) -> Nat {
     return Nat::from_le_slice(&result[..]);
 }
 
+pub fn read_args_message(args: env::Args) -> Nat {
+    let args: Vec<String> = args.collect();
+    let m = Nat::from(args.get(2).unwrap().parse::<u32>().unwrap());
+    m
+}
+
 #[cfg(test)]
 mod tests {
     use crypto_bigint::rand_core::OsRng;
@@ -144,6 +171,7 @@ mod tests {
         signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey,
     };
 
+    use super::*;
     #[test]
     fn test_sign() {
         let sk = SigningKey::random(&mut OsRng);
@@ -158,5 +186,10 @@ mod tests {
         let signature: Signature = sk.sign(message);
         let pk = VerifyingKey::from(&sk);
         assert!(pk.verify(message, &signature).is_ok());
+    }
+
+    #[test]
+    fn test_ecdsa() {
+        run_ecdsa(Nat::from_u16(1337));
     }
 }

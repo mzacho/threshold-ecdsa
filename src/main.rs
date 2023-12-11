@@ -23,7 +23,10 @@ fn main() {
             schnorr::run_schnorr(m, true)
         }
 
-        ECDSA => todo!("implement ECDSA"),
+        ECDSA => {
+            let m = ecdsa::read_args_message(args());
+            ecdsa::run_ecdsa(m)
+        }
         _ => panic!(
             "Use one of the following commands: \"{cmds}\"",
             cmds = AVAILABLE_CMDS.join(", ")
