@@ -5,10 +5,17 @@
 use crypto_bigint::NonZero;
 
 use crate::{
-    circuit::{deal_rands, Rands},
+    circuit::{deal_rands, push_node, Circuit, Rands},
     nat::Nat,
-    shares::{PointShares, NatShares},
+    node::Node,
+    shares::{NatShares, PointShares},
 };
+
+pub fn run_ecdsa(m: Nat, sk: Nat, modulus: NonZero<Nat>) {
+    let preprocessed_tuple = user_independent_preprocessing(&modulus);
+
+    let sk_shared = NatShares::new(&sk, modulus);
+}
 
 /// Generate tuple (<k>, [k_inv])
 ///
@@ -37,13 +44,37 @@ pub fn user_independent_preprocessing(modulus: &NonZero<Nat>) -> (PointShares, N
     return (k_point_share, k_inv);
 }
 
-pub fn user_dependent_preprocessing() {
-    todo!()
-}
+pub fn ecdsa_circuit(sk_shared: NatShares, preprocessed_tuple: (PointShares, NatShares)) {
+    // Create circuit
+    let mut circuit: Circuit = Circuit {
+        nodes: vec![],
+        modulus: sk_shared.m,
+    };
 
-// pub fn circuit_ecdsa() {
-//     todo!()
-// }
+    // User dependent preprocessing
+
+    // # Input nodes
+    
+    // <k>
+
+    // [k_inv]
+    let in_k_inv = Node::in_(preprocessed_tuple.1);
+    let in_k_inv_id = push_node(&mut circuit, in_k_inv);
+
+    // [sk]
+    let in_sk = Node::in_(sk_shared);
+    let in_sk_id = push_node(&mut circuit, in_sk);
+
+
+    // Compute [sk'] = [sk] * [k_inv]
+    let sk_prime = Node::mul(in_sk_id, in_k_inv_id);
+
+    // Open <k>
+
+    let 
+
+
+}
 
 #[cfg(test)]
 mod tests {
