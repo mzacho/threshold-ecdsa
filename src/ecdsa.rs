@@ -54,12 +54,15 @@ pub fn run_ecdsa(m: Nat) {
     // Verify signature
     let signing_key = SigningKey::from_slice(&sk.to_be_bytes()).unwrap();
 
+    // Concat r_x and s
+    let mut signature_bytes = r_x.to_be_bytes().to_vec();
+    signature_bytes.extend_from_slice(&s.to_be_bytes());
+
     let verifying_key = VerifyingKey::from(&signing_key); // Serialize with `::to_encoded_point()`
-    let signature = Signature::from_bytes(GenericArray::from_slice(&s.to_be_bytes()));
+                                                          // Create signature from signature_bytes
+    let signature = Signature::from_bytes(GenericArray::from_slice(&signature_bytes)).unwrap();
     println!("signature: {:?}", signature);
-    assert!(verifying_key
-        .verify(&m.to_be_bytes(), &signature.unwrap())
-        .is_ok());
+    assert!(verifying_key.verify(&m.to_be_bytes(), &signature).is_ok());
 }
 
 /// Generate tuple (<k>, [k_inv])
