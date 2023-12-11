@@ -4,8 +4,8 @@ use crypto_bigint::rand_core::OsRng;
 use crypto_bigint::{NonZero, RandomMod};
 
 use crate::nat::{mul_mod, Nat};
-use crate::node::{Const, Gate, Node, NodeId};
-use crate::shares::Shares;
+use crate::node::{Const, ConstLiteral, Gate, Node, NodeId};
+use crate::shares::{NatShares, Shares};
 
 /// `Circuit` represents the circuit used in the BeDOZa protocol for
 /// passively secure two-party computation.
@@ -23,12 +23,12 @@ pub struct Circuit {
 /// referred to by constant gates (in contrast to literals
 /// hard-coded into the constant gates).
 pub struct Env<'a> {
-    env: HashMap<NodeId, Nat>,
+    env: HashMap<NodeId, ConstLiteral>,
     modulus: &'a Nat,
 }
 
 impl<'a> Env<'a> {
-    pub fn insert(&mut self, key: NodeId, val: Nat) {
+    pub fn insert(&mut self, key: NodeId, val: ConstLiteral) {
         self.env.insert(key, val);
     }
 }
@@ -61,10 +61,12 @@ impl Circuit {
                 }
                 match &node.op {
                     Gate::AddUnary(c) => {
-                        let p1_val = p1.as_ref().unwrap().clone();
+                        // We only add constants to shares of nats
+                        let p1_val = p1.as_ref().unwrap().clone().nat();
                         let node = &self.nodes[id];
-                        let const_value = Self::lookup_const(&env, c);
-                        *node.value.borrow_mut() = Some(p1_val + const_value);
+                        // We only add nat constants to shares
+                        let const_value = Self::lookup_const(&env, c).nat();
+                        *node.value.borrow_mut() = Some(Shares::Nat(p1_val + const_value));
                     }
                     Gate::Mul => panic!("circuit not normalized"),
                     Gate::Add => {
@@ -74,7 +76,7 @@ impl Circuit {
                                 let v1 = p1.as_ref().unwrap().clone();
                                 let v2 = p2.as_ref().unwrap().clone();
                                 let node = &self.nodes[id];
-                                *node.value.borrow_mut() = Some(v1 + v2);
+                                *node.value.borrow_mut() = Some(v1 + v2)
                             } else {
                                 panic!("no values on parents of ADD")
                             }
@@ -91,7 +93,7 @@ impl Circuit {
                                     let s = p.as_ref().unwrap().clone();
                                     // Update the environment with the opened
                                     // value of the node
-                                    env.insert(id, s.open());
+                                    env.insert(id, s.open())
                                 } else {
                                     panic!("no value to open");
                                 }
@@ -100,10 +102,12 @@ impl Circuit {
                         }
                     }
                     Gate::MulUnary(c) => {
-                        let p1_val = p1.as_ref().unwrap().clone();
+                        // We only mul constants to shares of nats
+                        let p1_val = p1.as_ref().unwrap().clone().nat();
                         let node = &self.nodes[id];
-                        let b = Self::lookup_const(&env, c);
-                        *node.value.borrow_mut() = Some(p1_val * b);
+                        // We only mul nat constants to shares
+                        let b = Self::lookup_const(&env, c).nat();
+                        *node.value.borrow_mut() = Some(Shares::Nat(p1_val * b));
                     }
                 }
             } else {
@@ -113,8 +117,8 @@ impl Circuit {
         self.nodes[len - 1].value.borrow().as_ref().unwrap().clone()
     }
 
-    /// Returns the constant represented by `c`, by possibly performing
-    /// a lookup into the environment `e`.
+    /// Returns the constant literas represented by `c`, by possibly
+    /// performing a lookup into the environment `e`.
     ///
     /// Constants are either literal, variables or the product of two
     /// constants.
@@ -129,7 +133,7 @@ impl Circuit {
     /// two nodes, whose values should been opened and inserted into the
     /// environment during evaluation of the circuit. Their product is
     /// returned.
-    pub fn lookup_const(e: &Env, c: &Const) -> Nat {
+    pub fn lookup_const(e: &Env, c: &Const) -> ConstLiteral {
         match c {
             Const::Literal(b) => b.clone(),
             Const::Var(id) => {
@@ -141,11 +145,15 @@ impl Circuit {
             }
             Const::MUL(id1, id2) => match (e.env.get(&id1), e.env.get(&id2)) {
                 (Some(const_value_1), Some(const_value_2)) => {
-                    // Compute m - (e * d) mod m
-                    e.modulus.sub_mod(
-                        &mul_mod(const_value_1, const_value_2, &e.modulus),
-                        &e.modulus,
-                    )
+                    match (const_value_1, const_value_2) {
+                        (ConstLiteral::Nat(v1), ConstLiteral::Nat(v2)) => {
+                            // Compute m - (e * d) mod m
+                            let res = e.modulus.sub_mod(&mul_mod(v1, v2, &e.modulus), &e.modulus);
+                            ConstLiteral::Nat(res)
+                        }
+                        // don't think we need to multiply opened points
+                        _ => panic!("unimplemented"),
+                    }
                 }
                 (_, _) => panic!("could nok look up const vars for and"),
             },
@@ -272,9 +280,9 @@ impl Circuit {
 /// Invariant:
 ///   (u.open() * v.open()).mod_floor(&M) = w.open()
 pub struct Rands {
-    pub u: Shares,
-    pub v: Shares,
-    pub w: Shares,
+    pub u: NatShares,
+    pub v: NatShares,
+    pub w: NatShares,
 }
 
 /// Constructs new secret shares of u, v, w such that u * v = w.
@@ -289,8 +297,8 @@ pub fn deal_rands(modulus: &NonZero<Nat>) -> Rands {
     let vy: Nat = Nat::random_mod(&mut OsRng, &modulus);
     let wx: Nat = Nat::random_mod(&mut OsRng, &modulus);
 
-    let u: Shares = Shares::from(ux.clone(), uy.clone(), modulus.clone());
-    let v: Shares = Shares::from(vx.clone(), vy.clone(), modulus.clone());
+    let u: NatShares = NatShares::from(ux.clone(), uy.clone(), modulus.clone());
+    let v: NatShares = NatShares::from(vx.clone(), vy.clone(), modulus.clone());
 
     // Compute u * v mod m
     let k1 = mul_mod(&vx, &ux, &modulus);
@@ -308,7 +316,7 @@ pub fn deal_rands(modulus: &NonZero<Nat>) -> Rands {
         uv.sub_mod(&wx, &modulus)
     };
 
-    let w = Shares::from(wx, wy, modulus.clone());
+    let w = NatShares::from(wx, wy, modulus.clone());
     Rands { u, v, w }
 }
 

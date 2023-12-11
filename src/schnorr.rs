@@ -7,8 +7,8 @@ use crate::{
     circuit::{push_node, Circuit},
     groups::GroupSpec,
     nat::{mul_mod, pow_mod, Nat},
-    node::{Const, Node},
-    shares::Shares,
+    node::{Const, ConstLiteral, Node},
+    shares::NatShares,
 };
 
 // Run a schnorr protocol
@@ -41,14 +41,14 @@ pub fn run_schnorr(m: Nat, verbose: bool) {
     let e = compute_e(c, m);
 
     // Create the share for the random value r
-    let r_shares = Shares {
+    let r_shares = NatShares {
         x: r1,
         y: r2,
         m: group.q,
     };
 
     // Create the share for the secret key
-    let sk_share = Shares::new(&sk, group.q);
+    let sk_share = NatShares::new(&sk, group.q);
 
     // Construct net schnorr circuit
     let circuit = schnorr_circuit(r_shares, sk_share, e);
@@ -57,7 +57,7 @@ pub fn run_schnorr(m: Nat, verbose: bool) {
     let result = circuit.eval();
 
     // Open the result to get the second component z of the signature
-    let z = result.open();
+    let z = result.open().nat();
 
     // Compute beta inverted in mod p
     let (beta_inv, choice) = beta.inv_mod(&group.p);
@@ -107,7 +107,7 @@ pub fn read_args_message(args: env::Args) -> Nat {
 }
 
 // Schnorr circuit
-pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
+pub fn schnorr_circuit(r: NatShares, sk: NatShares, e: Nat) -> Circuit {
     // Check that the modulus of the shares are the same
     assert!(r.m == sk.m);
     let mut g: Circuit = Circuit {
@@ -123,7 +123,7 @@ pub fn schnorr_circuit(r: Shares, sk: Shares, e: Nat) -> Circuit {
     let in_r_id = push_node(&mut g, in_r);
 
     // Compute z = r + e * sk
-    let mul_e = Node::mul_unary(in_sk_id, Const::Literal(e));
+    let mul_e = Node::mul_unary(in_sk_id, Const::Literal(ConstLiteral::Nat(e)));
     let mul_e_id = push_node(&mut g, mul_e);
 
     // Add r and e * sk
