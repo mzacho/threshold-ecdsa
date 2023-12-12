@@ -182,7 +182,7 @@ impl Mul<Scalar> for PointShares {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{curve::ORDER, nat::mul_mod};
+    use crate::{curve::{ORDER, self}, nat::mul_mod};
 
     #[test]
     fn test_shares_new() {
@@ -252,7 +252,7 @@ mod test {
     /// and the shares are generated at random
     #[test]
     fn test_add_shares_is_homomorphic_wrt_convert_to_curve2() {
-        let m = NonZero::new(ORDER).unwrap();
+        let m = curve::nonzero_order();
         let s1 = NatShares::new(&Nat::from_u8(13_u8), m);
         let s2 = NatShares::new(&Nat::from_u8(42_u8), m);
 

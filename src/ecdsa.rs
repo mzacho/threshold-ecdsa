@@ -9,6 +9,7 @@ use k256::AffinePoint;
 
 use sha2::{Digest, Sha256};
 
+use crate::curve;
 use crate::groups::GroupSpec;
 use crate::{
     circuit::{deal_rands, push_node, Circuit, Rands},
@@ -28,17 +29,14 @@ use crate::{
 /// 4. Verify signature from evaluated circuit
 /// 5. PROFIT!
 pub fn run_ecdsa(m: Nat) {
-    // Create the group to work in
-    let group = GroupSpec::new();
-
     // Generate a secret key
-    let sk = group.rand_exp();
+    let sk = curve::rand_mod_order();
 
     // User independent preprocessing
-    let preprocessed_tuple = user_independent_preprocessing(&group.p);
+    let preprocessed_tuple = user_independent_preprocessing(&curve::nonzero_order());
 
     // Share key
-    let sk_shared = NatShares::new(&sk, group.p);
+    let sk_shared = NatShares::new(&sk, curve::nonzero_order());
 
     // Generate circuit
     let (mut circuit, r_x) = ecdsa_circuit(m, sk_shared, preprocessed_tuple);
