@@ -28,7 +28,7 @@ use crate::{
 /// 3. Evaluate circuit
 /// 4. Verify signature from evaluated circuit
 /// 5. PROFIT!
-pub fn run_ecdsa(m: Nat) {
+pub fn run_ecdsa(message: Nat) {
     // Generate a secret key
     let sk = curve::rand_mod_order();
 
@@ -39,7 +39,7 @@ pub fn run_ecdsa(m: Nat) {
     let sk_shared = NatShares::new(&sk, curve::nonzero_order());
 
     // Generate circuit
-    let (mut circuit, r_x) = ecdsa_circuit(m, sk_shared, preprocessed_tuple);
+    let (mut circuit, r_x) = ecdsa_circuit(message, sk_shared, preprocessed_tuple);
 
     // Convert mul gates
     circuit.transform_mul_gates();
@@ -60,7 +60,7 @@ pub fn run_ecdsa(m: Nat) {
                                                           // Create signature from signature_bytes
     let signature = Signature::from_bytes(GenericArray::from_slice(&signature_bytes)).unwrap();
     println!("signature: {:?}", signature);
-    assert!(verifying_key.verify(&m.to_be_bytes(), &signature).is_ok());
+    assert!(verifying_key.verify(&message.to_be_bytes(), &signature).is_ok());
 }
 
 /// Generate tuple (<k>, [k_inv])
@@ -93,7 +93,7 @@ fn user_independent_preprocessing(modulus: &NonZero<Nat>) -> (PointShares, NatSh
 /// Generate circuit for ECDSA (Securing DNSSEC Keys via Threshold ECDSA From Generic MPC, page 11)
 /// Does not include the user independent preprocessing
 fn ecdsa_circuit(
-    m: Nat,
+    message: Nat,
     sk_shared: NatShares,
     preprocessed_tuple: (PointShares, NatShares),
 ) -> (Circuit, Nat) {
@@ -126,7 +126,7 @@ fn ecdsa_circuit(
     let r_x: Nat = FieldBytesEncoding::decode_field_bytes(&r.x());
 
     // Compute H(m)
-    let hashed_m = hash_message(m);
+    let hashed_m = hash_message(message);
 
     // H(m) * [k_inv]
     let mul_message_k_inv =
