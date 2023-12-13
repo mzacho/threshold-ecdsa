@@ -45,7 +45,7 @@ pub fn run_ecdsa(message: Nat) {
 /// Using ABB+ protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
 ///
 /// Steps:
-/// 1. User independent preprocessing
+/// 1. User independent preprocessing to compute k^-1
 /// 2. Generate circuit
 /// 3. Evaluate circuit
 /// 3. Return signature: (r, s)
@@ -70,7 +70,7 @@ fn sign_message(m: Nat, sk_shared: NatShares) -> (Nat, Nat) {
 /// Verify a signature
 ///
 /// Based on https://cryptobook.nakov.com/digital-signatures/ecdsa-sign-verify-messages
-/// 
+///
 /// Arguments:
 /// - `m`: message
 /// - `signature`: (r, s)
@@ -87,17 +87,11 @@ fn verify_signature(m: Nat, signature: (Nat, Nat), pk: Point) -> bool {
         panic!("s inverse does not exist")
     }
 
-    // Recover Random point used during the signing R' = (h * s_inv) * G + (r * s_inv) * pubKey
-    let h_mul_s_inv = curve::Scalar::from_uint_unchecked(mul_mod(
-        &s_inv,
-        &h,
-        &curve::nonzero_order(),
-    ));
-    let r_mul_s_inv = curve::Scalar::from_uint_unchecked(mul_mod(
-        &s_inv,
-        &r,
-        &curve::nonzero_order(),
-    ));
+    // Recover Random point used during the signing R' = (h * s_inv) * G + (r * s_inv) * pk
+    let h_mul_s_inv =
+        curve::Scalar::from_uint_unchecked(mul_mod(&s_inv, &h, &curve::nonzero_order()));
+    let r_mul_s_inv =
+        curve::Scalar::from_uint_unchecked(mul_mod(&s_inv, &r, &curve::nonzero_order()));
 
     let r_prime = AffinePoint::from(Point::mul_by_generator(&h_mul_s_inv) + pk.mul(r_mul_s_inv));
 
@@ -113,7 +107,7 @@ fn verify_signature(m: Nat, signature: (Nat, Nat), pk: Point) -> bool {
 }
 
 /// Generate public key
-/// 
+///
 /// Returns a point on the curve
 /// pk = Open(Convert(\[sk\]))
 fn generate_public_key(sk_shared: NatShares) -> Point {
