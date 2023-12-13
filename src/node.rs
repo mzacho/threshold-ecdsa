@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use crate::{
     curve::Point,
     nat::Nat,
-    shares::{NatShares, PointShares, Shares},
+    shares::{NatShares, Shares},
 };
 
 #[derive(Debug, Clone)]

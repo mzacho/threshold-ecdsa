@@ -1,16 +1,16 @@
 use std::env;
 
-use crypto_bigint::generic_array::GenericArray;
 use crypto_bigint::{Encoding, NonZero};
-use elliptic_curve::{point::AffineCoordinates, FieldBytesEncoding};
-use k256::ecdsa::{signature::Verifier, VerifyingKey};
-use k256::ecdsa::{Signature, SigningKey};
-use k256::AffinePoint;
+
+use elliptic_curve::scalar::FromUintUnchecked;
+use elliptic_curve::CurveArithmetic;
+use elliptic_curve::{ops::Mul, ops::MulByGenerator, point::AffineCoordinates, FieldBytesEncoding};
+use k256::{AffinePoint, Secp256k1};
 
 use sha2::{Digest, Sha256};
 
-use crate::curve;
-use crate::groups::GroupSpec;
+use crate::curve::{self, Point};
+use crate::nat::mul_mod;
 use crate::{
     circuit::{deal_rands, push_node, Circuit, Rands},
     nat::Nat,
@@ -22,24 +22,41 @@ use crate::{
 ///
 /// Uses the protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
 ///
-/// Steps:
-/// 1. User independent preprocessing
-/// 2. Generate circuit
-/// 3. Evaluate circuit
-/// 4. Verify signature from evaluated circuit
-/// 5. PROFIT!
+/// 1. Sign message
+/// 2. Verify signature
+/// 3. PROFIT!
 pub fn run_ecdsa(message: Nat) {
     // Generate a secret key
     let sk = curve::rand_mod_order();
 
+    // Share secret key
+    let sk_shared = NatShares::new(&sk, curve::nonzero_order());
+
+    // Public key
+    let pk = generate_public_key(sk_shared.clone());
+
+    // Sign message
+    let signature = sign_message(message, sk_shared);
+
+    // Verify signature
+    assert!(verify_signature(message, signature, pk));
+}
+
+/// Sign a message
+///
+/// Using ABB+ protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
+///
+/// Steps:
+/// 1. User independent preprocessing
+/// 2. Generate circuit
+/// 3. Evaluate circuit
+/// 3. Return signature: (r, s)
+fn sign_message(m: Nat, sk_shared: NatShares) -> (Nat, Nat) {
     // User independent preprocessing
     let preprocessed_tuple = user_independent_preprocessing(&curve::nonzero_order());
 
-    // Share key
-    let sk_shared = NatShares::new(&sk, curve::nonzero_order());
-
     // Generate circuit
-    let (mut circuit, r_x) = ecdsa_circuit(message, sk_shared, preprocessed_tuple);
+    let (mut circuit, r_x) = ecdsa_circuit(m, sk_shared.clone(), preprocessed_tuple);
 
     // Convert mul gates
     circuit.transform_mul_gates();
@@ -49,18 +66,53 @@ pub fn run_ecdsa(message: Nat) {
 
     let s = s_shared.open().nat();
 
-    // Verify signature
-    let signing_key = SigningKey::from_slice(&sk.to_le_bytes()).unwrap();
+    return (r_x, s);
+}
 
-    // Concat r_x and s
-    let mut signature_bytes = r_x.to_le_bytes().to_vec();
-    signature_bytes.extend_from_slice(&s.to_le_bytes());
+/// Verify a signature
+///
+/// Based on https://cryptobook.nakov.com/digital-signatures/ecdsa-sign-verify-messages
+fn verify_signature(m: Nat, signature: (Nat, Nat), pk: Point) -> bool {
+    let (r, s) = signature;
 
-    let verifying_key = VerifyingKey::from(&signing_key); // Serialize with `::to_encoded_point()`
-                                                          // Create signature from signature_bytes
-    let signature = Signature::from_bytes(GenericArray::from_slice(&signature_bytes)).unwrap();
-    println!("signature: {:?}", signature);
-    assert!(verifying_key.verify(&message.to_le_bytes(), &signature).is_ok());
+    // Calculate the hash of the message
+    let h = hash_message(m);
+
+    // Calculate the modular inverse of the signature proof s
+    let (s_inv, s_inv_exists) = s.inv_mod(&curve::nonzero_order());
+    if !bool::from(s_inv_exists) {
+        panic!("s inverse does not exist")
+    }
+
+    // Recover Random point used during the signing R' = (h * s_inv) * G + (r * s_inv) * pubKey
+    let h_mul_s_inv = <Secp256k1 as CurveArithmetic>::Scalar::from_uint_unchecked(mul_mod(
+        &s_inv,
+        &h,
+        &curve::nonzero_order(),
+    ));
+    let r_mul_s_inv = <Secp256k1 as CurveArithmetic>::Scalar::from_uint_unchecked(mul_mod(
+        &s_inv,
+        &r,
+        &curve::nonzero_order(),
+    ));
+
+    let r_prime = AffinePoint::from(Point::mul_by_generator(&h_mul_s_inv) + pk.mul(r_mul_s_inv));
+
+    // Take from R' it's x coordinate r' = R'.x
+    let r_prime_x: Nat = FieldBytesEncoding::decode_field_bytes(&r_prime.x());
+
+    // Calculate the signature validation result by comparing wether r' = r
+    println!("r_prime_x: \t{}", r_prime_x);
+    println!("r_x: \t\t{}", r);
+    println!("r_prime_x == r: {}", r_prime_x == r);
+
+    return r_prime_x == r;
+}
+
+fn generate_public_key(sk_shared: NatShares) -> Point {
+    let sk_convert = PointShares::convert(sk_shared);
+    let pk = Shares::Point(sk_convert).open().point();
+    return pk;
 }
 
 /// Generate tuple (<k>, [k_inv])
@@ -158,36 +210,16 @@ fn hash_message(m: Nat) -> Nat {
 
 pub fn read_args_message(args: env::Args) -> Nat {
     let args: Vec<String> = args.collect();
-    let m = Nat::from(args.get(2).unwrap().parse::<u32>().unwrap());
+    let m = Nat::from(args.get(2).unwrap().parse::<u128>().unwrap());
     m
 }
 
 #[cfg(test)]
 mod tests {
-    use crypto_bigint::rand_core::OsRng;
-    use k256::ecdsa::{
-        signature::Signer, signature::Verifier, Signature, SigningKey, VerifyingKey,
-    };
-
     use super::*;
-    #[test]
-    fn test_sign() {
-        let sk = SigningKey::random(&mut OsRng);
-        let message = b"hello ecdsa";
-        let _: Signature = sk.sign(message);
-    }
 
     #[test]
-    fn test_verify() {
-        let sk = SigningKey::random(&mut OsRng);
-        let message = b"hello ecdsa";
-        let signature: Signature = sk.sign(message);
-        let pk = VerifyingKey::from(&sk);
-        assert!(pk.verify(message, &signature).is_ok());
-    }
-
-    #[test]
-    fn test_ecdsa() {
+    fn test_run_ecdsa() {
         run_ecdsa(Nat::from_u16(1337));
     }
 }
