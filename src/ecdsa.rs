@@ -9,11 +9,10 @@ use k256::{AffinePoint, Secp256k1};
 
 use sha2::{Digest, Sha256};
 
-use crate::curve::{self, Point};
-use crate::nat::mul_mod;
 use crate::{
     circuit::{deal_rands, push_node, Circuit, Rands},
-    nat::Nat,
+    curve::{self, Point},
+    nat::{mul_mod, Nat},
     node::{Const, ConstLiteral, Node},
     shares::{NatShares, PointShares, Shares},
 };
@@ -72,6 +71,11 @@ fn sign_message(m: Nat, sk_shared: NatShares) -> (Nat, Nat) {
 /// Verify a signature
 ///
 /// Based on https://cryptobook.nakov.com/digital-signatures/ecdsa-sign-verify-messages
+/// 
+/// Arguments:
+/// - `m`: message
+/// - `signature`: (r, s)
+/// - `pk`: public key - Open(Convert(\[sk\]))
 fn verify_signature(m: Nat, signature: (Nat, Nat), pk: Point) -> bool {
     let (r, s) = signature;
 
@@ -109,6 +113,10 @@ fn verify_signature(m: Nat, signature: (Nat, Nat), pk: Point) -> bool {
     return r_prime_x == r;
 }
 
+/// Generate public key
+/// 
+/// Returns a point on the curve
+/// pk = Open(Convert(\[sk\]))
 fn generate_public_key(sk_shared: NatShares) -> Point {
     let sk_convert = PointShares::convert(sk_shared);
     let pk = Shares::Point(sk_convert).open().point();
