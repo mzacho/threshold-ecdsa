@@ -116,10 +116,10 @@ pub fn schnorr_circuit(r: NatShares, sk: NatShares, e: Nat) -> Circuit {
     };
 
     // Add the input nodes
-    let in_sk = Node::in_(sk);
+    let in_sk = Node::in_nat(sk);
     let in_sk_id = push_node(&mut g, in_sk);
 
-    let in_r = Node::in_(r);
+    let in_r = Node::in_nat(r);
     let in_r_id = push_node(&mut g, in_r);
 
     // Compute z = r + e * sk

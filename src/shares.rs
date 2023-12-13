@@ -74,7 +74,7 @@ impl NatShares {
 
     /// Transform Shares to input Node
     pub fn as_in_node(self) -> Node {
-        Node::in_(self)
+        Node::in_nat(self)
     }
 
     /// Reconstruct the secret from the shares

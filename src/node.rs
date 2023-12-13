@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use crate::{
     curve::Point,
     nat::Nat,
-    shares::{NatShares, Shares},
+    shares::{NatShares, PointShares, Shares},
 };
 
 #[derive(Debug, Clone)]
@@ -40,13 +40,13 @@ impl ConstLiteral {
         }
     }
 
-    // pub fn point(self) -> Point {
-    //     if let Self::Point(p) = self {
-    //         p
-    //     } else {
-    //         panic!("not a point")
-    //     }
-    // }
+    pub fn point(self) -> Point {
+        if let Self::Point(p) = self {
+            p
+        } else {
+            panic!("not a point")
+        }
+    }
 }
 
 pub type NodeId = usize;
@@ -127,9 +127,16 @@ impl Node {
         }
     }
 
-    pub fn in_(s: NatShares) -> Self {
+    pub fn in_nat(s: NatShares) -> Self {
         Node {
             value: RefCell::new(Some(Shares::Nat(s))),
+            ..Node::default()
+        }
+    }
+
+    pub fn in_point(s: PointShares) -> Self {
+        Node {
+            value: RefCell::new(Some(Shares::Point(s))),
             ..Node::default()
         }
     }
@@ -271,7 +278,7 @@ mod tests {
                             let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
                             let mut g: Circuit =
-                                single_mul_gate(Node::in_(x.clone()), Node::in_(y.clone()));
+                                single_mul_gate(Node::in_nat(x.clone()), Node::in_nat(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(res.open().nat(), mul_mod(&x.open(), &y.open(), &m));
@@ -296,7 +303,7 @@ mod tests {
                             let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
                             let mut g =
-                                and_xor_unary_one(Node::in_(x.clone()), Node::in_(y.clone()));
+                                and_xor_unary_one(Node::in_nat(x.clone()), Node::in_nat(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(
@@ -323,8 +330,10 @@ mod tests {
                             let x: NatShares = NatShares::from(b1.clone(), b2.clone(), m.clone());
                             let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
-                            let mut g =
-                                x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
+                            let mut g = x_plus_y_times_x_plus_1(
+                                Node::in_nat(x.clone()),
+                                Node::in_nat(y.clone()),
+                            );
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(
@@ -352,8 +361,10 @@ mod tests {
                             let x: NatShares = NatShares::from(b1.clone(), b2.clone(), m.clone());
                             let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
-                            let mut g =
-                                x_plus_y_times_x_plus_1(Node::in_(x.clone()), Node::in_(y.clone()));
+                            let mut g = x_plus_y_times_x_plus_1(
+                                Node::in_nat(x.clone()),
+                                Node::in_nat(y.clone()),
+                            );
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(
@@ -381,7 +392,7 @@ mod tests {
                             let x: NatShares = NatShares::from(b1.clone(), b2.clone(), m.clone());
                             let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
-                            let mut g = and_and(Node::in_(x.clone()), Node::in_(y.clone()));
+                            let mut g = and_and(Node::in_nat(x.clone()), Node::in_nat(y.clone()));
                             g.transform_and_gates();
                             let res = g.eval();
                             assert_eq!(
