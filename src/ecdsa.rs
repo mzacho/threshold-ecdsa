@@ -203,6 +203,14 @@ fn ecdsa_circuit(
     (circuit, r_x)
 }
 
+/// Generate ECDSA keypair where sk is secret shared
+fn keygen() -> (NatShares, Point) {
+    let sk = curve::rand_mod_order();
+    let sk_shared = NatShares::new(&sk, curve::nonzero_order());
+    let pk = generate_public_key(sk_shared.clone());
+    (sk_shared, pk)
+}
+
 /// Compute H(m) = sha256(m)
 fn hash_message(m: Nat) -> Nat {
     let m_bytes = m.to_be_bytes();
@@ -228,5 +236,39 @@ mod tests {
     #[test]
     fn test_run_ecdsa() {
         run_ecdsa(Nat::from_u16(1337));
+    }
+
+    #[test]
+    fn test_threshold_ecdsa_positive() {
+        // Test that sign/verify of 100 random messages
+        let mut i = 0;
+        while i < 100 {
+            let message = curve::rand_mod_order();
+
+            let (sk_shared, pk) = keygen();
+            let s = sign_message(message, sk_shared);
+            assert!(verify_signature(message, s, pk));
+            i = i + 1;
+        }
+        run_ecdsa(Nat::from_u16(1337));
+    }
+
+    #[test]
+    fn test_threshold_ecdsa_negative() {
+        // Test that sign/verify of 100 random messages
+        // m1 and m2 where m1 != m2
+        let mut i = 0;
+        while i < 100 {
+            let m1 = curve::rand_mod_order();
+            let m2 = curve::rand_mod_order();
+            if m1 == m2 {
+                continue;
+            }
+
+            let (sk_shared, pk) = keygen();
+            let s = sign_message(m1, sk_shared);
+            assert!(!verify_signature(m2, s, pk));
+            i = i + 1;
+        }
     }
 }
