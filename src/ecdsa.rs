@@ -3,9 +3,8 @@ use std::env;
 use crypto_bigint::{Encoding, NonZero};
 
 use elliptic_curve::scalar::FromUintUnchecked;
-use elliptic_curve::CurveArithmetic;
 use elliptic_curve::{ops::Mul, ops::MulByGenerator, point::AffineCoordinates, FieldBytesEncoding};
-use k256::{AffinePoint, Secp256k1};
+use k256::AffinePoint;
 
 use sha2::{Digest, Sha256};
 
@@ -89,12 +88,12 @@ fn verify_signature(m: Nat, signature: (Nat, Nat), pk: Point) -> bool {
     }
 
     // Recover Random point used during the signing R' = (h * s_inv) * G + (r * s_inv) * pubKey
-    let h_mul_s_inv = <Secp256k1 as CurveArithmetic>::Scalar::from_uint_unchecked(mul_mod(
+    let h_mul_s_inv = curve::Scalar::from_uint_unchecked(mul_mod(
         &s_inv,
         &h,
         &curve::nonzero_order(),
     ));
-    let r_mul_s_inv = <Secp256k1 as CurveArithmetic>::Scalar::from_uint_unchecked(mul_mod(
+    let r_mul_s_inv = curve::Scalar::from_uint_unchecked(mul_mod(
         &s_inv,
         &r,
         &curve::nonzero_order(),
