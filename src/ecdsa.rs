@@ -24,14 +24,8 @@ use crate::{
 /// 2. Verify signature
 /// 3. PROFIT!
 pub fn run_ecdsa(message: Nat) {
-    // Generate a secret key
-    let sk = curve::rand_mod_order();
-
-    // Share secret key
-    let sk_shared = NatShares::new(&sk, curve::nonzero_order());
-
-    // Public key
-    let pk = generate_public_key(sk_shared.clone());
+    // Generate a keys
+    let (sk_shared, pk) = keygen();
 
     // Sign message
     let signature = sign_message(message, sk_shared);
