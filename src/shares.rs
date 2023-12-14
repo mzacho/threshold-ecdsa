@@ -186,7 +186,10 @@ impl Mul<Scalar> for PointShares {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{curve::{self}, nat::mul_mod};
+    use crate::{
+        curve::{self},
+        nat::mul_mod,
+    };
 
     #[test]
     fn test_shares_new() {

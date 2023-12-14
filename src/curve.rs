@@ -1,5 +1,5 @@
 use crate::nat::Nat;
-use crypto_bigint::{RandomMod, rand_core::OsRng, NonZero};
+use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
 use elliptic_curve::{Curve as EC_CURVE, ProjectivePoint};
 
 /// The curve with parameters used by bitcoins pke
