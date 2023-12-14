@@ -33,6 +33,7 @@ pub fn run_ecdsa_bedoza(message: Nat) {
 /// Run a ECDSA protocol without BeDOZa
 /// Used for benchmarking
 /// Uses the protocol from https://cryptobook.nakov.com/digital-signatures/ecdsa-sign-verify-messages
+#[allow(dead_code)]
 pub fn run_ecdsa_plain(message: Nat) {
     // Generate a keys
     let (sk, _, pk) = keygen();
