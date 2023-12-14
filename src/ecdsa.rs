@@ -25,7 +25,7 @@ use crate::{
 /// 3. PROFIT!
 pub fn run_ecdsa_bedoza(message: Nat) {
     // Generate a keys
-    let (sk_shared, pk) = keygen();
+    let (_, sk_shared, pk) = keygen();
 
     // Sign message
     let signature = sign_message_bedoza(message, sk_shared);
@@ -103,7 +103,7 @@ fn verify_signature(m: Nat, signature: (Nat, Nat), pk: Point) -> bool {
 /// Generate public key
 ///
 /// Returns a point on the curve
-/// pk = Open(Convert(\[sk\]))
+/// `pk = Open(Convert([sk]))` or `pk = sk * G`
 fn generate_public_key(sk_shared: NatShares) -> Point {
     let sk_convert = PointShares::convert(sk_shared);
     let pk = Shares::Point(sk_convert).open().point();
@@ -192,11 +192,11 @@ fn ecdsa_circuit(
 }
 
 /// Generate ECDSA keypair where sk is secret shared
-fn keygen() -> (NatShares, Point) {
+fn keygen() -> (Nat, NatShares, Point) {
     let sk = curve::rand_mod_order();
     let sk_shared = NatShares::new(&sk, curve::nonzero_order());
     let pk = generate_public_key(sk_shared.clone());
-    (sk_shared, pk)
+    (sk, sk_shared, pk)
 }
 
 /// Compute H(m) = sha256(m)
@@ -227,13 +227,13 @@ mod tests {
     }
 
     #[test]
-    fn test_threshold_ecdsa_positive() {
+    fn test_threshold_ecdsa_bedoza_positive() {
         // Test that sign/verify of 100 random messages
         let mut i = 0;
         while i < 100 {
             let message = curve::rand_mod_order();
 
-            let (sk_shared, pk) = keygen();
+            let (_, sk_shared, pk) = keygen();
             let s = sign_message_bedoza(message, sk_shared);
             assert!(verify_signature(message, s, pk));
             i = i + 1;
@@ -242,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn test_threshold_ecdsa_negative() {
+    fn test_threshold_ecdsa_bedoza_negative() {
         // Test that sign/verify of 100 random messages
         // m1 and m2 where m1 != m2
         let mut i = 0;
@@ -253,7 +253,7 @@ mod tests {
                 continue;
             }
 
-            let (sk_shared, pk) = keygen();
+            let (_, sk_shared, pk) = keygen();
             let s = sign_message_bedoza(m1, sk_shared);
             assert!(!verify_signature(m2, s, pk));
             i = i + 1;
