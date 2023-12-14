@@ -16,19 +16,29 @@ use crate::{
     shares::{NatShares, PointShares, Shares},
 };
 
-/// Run a ECDSA protocol
+/// Run a ECDSA protocol with BeDOZa
 ///
 /// Uses the protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
-///
-/// 1. Sign message
-/// 2. Verify signature
-/// 3. PROFIT!
 pub fn run_ecdsa_bedoza(message: Nat) {
     // Generate a keys
     let (_, sk_shared, pk) = keygen();
 
     // Sign message
     let signature = sign_message_bedoza(message, sk_shared);
+
+    // Verify signature
+    assert!(verify_signature(message, signature, pk));
+}
+
+/// Run a ECDSA protocol without BeDOZa
+/// Used for benchmarking
+/// Uses the protocol from https://cryptobook.nakov.com/digital-signatures/ecdsa-sign-verify-messages
+pub fn run_ecdsa_plain(message: Nat) {
+    // Generate a keys
+    let (sk, _, pk) = keygen();
+
+    // Sign message
+    let signature = sign_message_plain(message, sk);
 
     // Verify signature
     assert!(verify_signature(message, signature, pk));
@@ -211,6 +221,40 @@ fn hash_message(m: Nat) -> Nat {
     return Nat::from_le_slice(&result[..]);
 }
 
+/// Sign a message with plain ECDSA (no BeDOZa)
+///
+/// Based on https://cryptobook.nakov.com/digital-signatures/ecdsa-sign-verify-messages
+#[allow(dead_code)]
+fn sign_message_plain(message: Nat, sk: Nat) -> (Nat, Nat) {
+    // Calculate the hash of the message
+    let h = hash_message(message);
+
+    // Generate a random number k
+    let k = curve::rand_mod_order();
+
+    // Calculate random point R = k * G and take its x coordinate r_x = R.x
+    let r_x = FieldBytesEncoding::decode_field_bytes(
+        &AffinePoint::from(Point::mul_by_generator(
+            &curve::Scalar::from_uint_unchecked(k),
+        ))
+        .x(),
+    );
+
+    // Calculate the modular inverse of k
+    let (k_inv, k_inv_exists) = k.inv_mod(&curve::nonzero_order());
+    if !bool::from(k_inv_exists) {
+        panic!("k inverse does not exist")
+    }
+
+    // Calculate the signature proof s = (h + r_x * sk) * k_inv
+    let h_plus_r_x_sk =
+        mul_mod(&r_x, &sk, &curve::nonzero_order()).add_mod(&h, &curve::nonzero_order());
+    let s = mul_mod(&h_plus_r_x_sk, &k_inv, &curve::nonzero_order());
+
+    (r_x, s)
+}
+
+/// Read message after "ecdsa" from command line arguments
 pub fn read_args_message(args: env::Args) -> Nat {
     let args: Vec<String> = args.collect();
     let m = Nat::from(args.get(2).unwrap().parse::<u128>().unwrap());
@@ -218,7 +262,7 @@ pub fn read_args_message(args: env::Args) -> Nat {
 }
 
 #[cfg(test)]
-mod tests {
+mod tests_bedoza {
     use super::*;
 
     #[test]
@@ -255,6 +299,50 @@ mod tests {
 
             let (_, sk_shared, pk) = keygen();
             let s = sign_message_bedoza(m1, sk_shared);
+            assert!(!verify_signature(m2, s, pk));
+            i = i + 1;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests_plain {
+    use super::*;
+
+    #[test]
+    fn test_run_ecdsa() {
+        run_ecdsa_plain(Nat::from_u16(1337));
+    }
+
+    #[test]
+    fn test_threshold_ecdsa_plain_positive() {
+        // Test that sign/verify of 100 random messages
+        let mut i = 0;
+        while i < 100 {
+            let message = curve::rand_mod_order();
+
+            let (sk, _, pk) = keygen();
+            let s = sign_message_plain(message, sk);
+            assert!(verify_signature(message, s, pk));
+            i = i + 1;
+        }
+        run_ecdsa_plain(Nat::from_u16(1337));
+    }
+
+    #[test]
+    fn test_threshold_ecdsa_plain_negative() {
+        // Test that sign/verify of 100 random messages
+        // m1 and m2 where m1 != m2
+        let mut i = 0;
+        while i < 100 {
+            let m1 = curve::rand_mod_order();
+            let m2 = curve::rand_mod_order();
+            if m1 == m2 {
+                continue;
+            }
+
+            let (sk, _, pk) = keygen();
+            let s = sign_message_plain(m1, sk);
             assert!(!verify_signature(m2, s, pk));
             i = i + 1;
         }
