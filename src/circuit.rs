@@ -175,7 +175,7 @@ impl Circuit {
     /// id of the gate containing the value being opened.
     /// The actual reconstruction of secrets is being
     /// handled in the evaluation of the circuit.
-    pub fn transform_and_gates(&mut self) -> () {
+    pub fn transform_mul_gates(&mut self) -> () {
         let mut i = 0;
         while i < self.nodes.len() {
             let node = &self.nodes[i];

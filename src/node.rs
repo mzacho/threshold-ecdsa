@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use crate::{
     curve::Point,
     nat::Nat,
-    shares::{NatShares, PointShares, Shares},
+    shares::{NatShares, Shares},
 };
 
 #[derive(Debug, Clone)]
@@ -134,12 +134,12 @@ impl Node {
         }
     }
 
-    pub fn in_point(s: PointShares) -> Self {
-        Node {
-            value: RefCell::new(Some(Shares::Point(s))),
-            ..Node::default()
-        }
-    }
+    // pub fn in_point(s: PointShares) -> Self {
+    //     Node {
+    //         value: RefCell::new(Some(Shares::Point(s))),
+    //         ..Node::default()
+    //     }
+    // }
 }
 
 /// Converts an array of boolean values, representing the
@@ -279,7 +279,7 @@ mod tests {
 
                             let mut g: Circuit =
                                 single_mul_gate(Node::in_nat(x.clone()), Node::in_nat(y.clone()));
-                            g.transform_and_gates();
+                            g.transform_mul_gates();
                             let res = g.eval();
                             assert_eq!(res.open().nat(), mul_mod(&x.open(), &y.open(), &m));
                         }
@@ -304,7 +304,7 @@ mod tests {
 
                             let mut g =
                                 and_xor_unary_one(Node::in_nat(x.clone()), Node::in_nat(y.clone()));
-                            g.transform_and_gates();
+                            g.transform_mul_gates();
                             let res = g.eval();
                             assert_eq!(
                                 res.open().nat(),
@@ -334,7 +334,7 @@ mod tests {
                                 Node::in_nat(x.clone()),
                                 Node::in_nat(y.clone()),
                             );
-                            g.transform_and_gates();
+                            g.transform_mul_gates();
                             let res = g.eval();
                             assert_eq!(
                                 res.open().nat(),
@@ -365,7 +365,7 @@ mod tests {
                                 Node::in_nat(x.clone()),
                                 Node::in_nat(y.clone()),
                             );
-                            g.transform_and_gates();
+                            g.transform_mul_gates();
                             let res = g.eval();
                             assert_eq!(
                                 res.open().nat(),
@@ -393,7 +393,7 @@ mod tests {
                             let y: NatShares = NatShares::from(b3.clone(), b4, m.clone());
 
                             let mut g = and_and(Node::in_nat(x.clone()), Node::in_nat(y.clone()));
-                            g.transform_and_gates();
+                            g.transform_mul_gates();
                             let res = g.eval();
                             assert_eq!(
                                 res.open().nat(),

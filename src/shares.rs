@@ -36,7 +36,7 @@ impl Shares {
     pub fn open(self) -> ConstLiteral {
         match self {
             Shares::Nat(self_) => ConstLiteral::Nat(self_.x.add_mod(&self_.y, &self_.m)),
-            Shares::Point(self_) => ConstLiteral::Point(self_.x + &self_.y),
+            Shares::Point(self_) => ConstLiteral::Point(self_.s1 + &self_.s2),
         }
     }
 }
@@ -130,8 +130,8 @@ impl Mul<Nat> for NatShares {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct PointShares {
-    pub x: Point,
-    pub y: Point,
+    pub s1: Point,
+    pub s2: Point,
 }
 
 impl PointShares {
@@ -145,7 +145,11 @@ impl PointShares {
         let xi = Point::mul_by_generator(&x);
         let yi = Point::mul_by_generator(&y);
 
-        PointShares { x: xi, y: yi }
+        PointShares { s1: xi, s2: yi }
+    }
+
+    pub fn convert(s: NatShares) -> Self {
+        Self::from(s)
     }
 }
 
@@ -154,8 +158,8 @@ impl Add for PointShares {
 
     fn add(self, rhs: Self) -> Self::Output {
         PointShares {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
+            s1: self.s1 + rhs.s1,
+            s2: self.s2 + rhs.s2,
         }
     }
 }
@@ -173,8 +177,8 @@ impl Mul<Scalar> for PointShares {
 
     fn mul(self, rhs: Scalar) -> Self::Output {
         PointShares {
-            x: self.x * rhs,
-            y: self.y * rhs,
+            s1: self.s1 * rhs,
+            s2: self.s2 * rhs,
         }
     }
 }
@@ -182,7 +186,10 @@ impl Mul<Scalar> for PointShares {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{curve::ORDER, nat::mul_mod};
+    use crate::{
+        curve::{self},
+        nat::mul_mod,
+    };
 
     #[test]
     fn test_shares_new() {
@@ -252,7 +259,7 @@ mod test {
     /// and the shares are generated at random
     #[test]
     fn test_add_shares_is_homomorphic_wrt_convert_to_curve2() {
-        let m = NonZero::new(ORDER).unwrap();
+        let m = curve::nonzero_order();
         let s1 = NatShares::new(&Nat::from_u8(13_u8), m);
         let s2 = NatShares::new(&Nat::from_u8(42_u8), m);
 

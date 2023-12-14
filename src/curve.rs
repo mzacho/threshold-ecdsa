@@ -1,4 +1,5 @@
 use crate::nat::Nat;
+use crypto_bigint::{rand_core::OsRng, NonZero, RandomMod};
 use elliptic_curve::{Curve as EC_CURVE, ProjectivePoint};
 
 /// The curve with parameters used by bitcoins pke
@@ -13,6 +14,14 @@ pub type Point = ProjectivePoint<Curve>;
 /// A scalar in the underlying field of the curve
 /// The ECDSA sk is such a scalar
 pub type Scalar = k256::Scalar;
+
+pub fn rand_mod_order() -> Nat {
+    Nat::random_mod(&mut OsRng, &nonzero_order())
+}
+
+pub fn nonzero_order() -> NonZero<Nat> {
+    NonZero::new(ORDER).unwrap()
+}
 
 #[cfg(test)]
 mod test {
