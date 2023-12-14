@@ -23,18 +23,18 @@ use crate::{
 /// 1. Sign message
 /// 2. Verify signature
 /// 3. PROFIT!
-pub fn run_ecdsa(message: Nat) {
+pub fn run_ecdsa_bedoza(message: Nat) {
     // Generate a keys
     let (sk_shared, pk) = keygen();
 
     // Sign message
-    let signature = sign_message(message, sk_shared);
+    let signature = sign_message_bedoza(message, sk_shared);
 
     // Verify signature
     assert!(verify_signature(message, signature, pk));
 }
 
-/// Sign a message
+/// Sign a message with BeDOZa
 ///
 /// Using ABB+ protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
 ///
@@ -43,7 +43,7 @@ pub fn run_ecdsa(message: Nat) {
 /// 2. Generate circuit
 /// 3. Evaluate circuit
 /// 3. Return signature: (r, s)
-fn sign_message(m: Nat, sk_shared: NatShares) -> (Nat, Nat) {
+fn sign_message_bedoza(m: Nat, sk_shared: NatShares) -> (Nat, Nat) {
     // User independent preprocessing
     let preprocessed_tuple = user_independent_preprocessing(&curve::nonzero_order());
 
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn test_run_ecdsa() {
-        run_ecdsa(Nat::from_u16(1337));
+        run_ecdsa_bedoza(Nat::from_u16(1337));
     }
 
     #[test]
@@ -234,11 +234,11 @@ mod tests {
             let message = curve::rand_mod_order();
 
             let (sk_shared, pk) = keygen();
-            let s = sign_message(message, sk_shared);
+            let s = sign_message_bedoza(message, sk_shared);
             assert!(verify_signature(message, s, pk));
             i = i + 1;
         }
-        run_ecdsa(Nat::from_u16(1337));
+        run_ecdsa_bedoza(Nat::from_u16(1337));
     }
 
     #[test]
@@ -254,7 +254,7 @@ mod tests {
             }
 
             let (sk_shared, pk) = keygen();
-            let s = sign_message(m1, sk_shared);
+            let s = sign_message_bedoza(m1, sk_shared);
             assert!(!verify_signature(m2, s, pk));
             i = i + 1;
         }
