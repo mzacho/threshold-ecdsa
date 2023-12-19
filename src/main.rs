@@ -20,7 +20,7 @@ fn main() {
     match cmd.as_str() {
         SCHNORR => {
             let m = schnorr::read_args_message(args());
-            schnorr::run_schnorr(m, true)
+            // schnorr::run_schnorr(m, true)
         }
 
         ECDSA => {

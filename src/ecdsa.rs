@@ -104,9 +104,9 @@ fn verify_signature(m: Nat, signature: (Nat, Nat), pk: Point) -> bool {
     let r_prime_x: Nat = FieldBytesEncoding::decode_field_bytes(&r_prime.x());
 
     // Calculate the signature validation result by comparing wether r' = r
-    println!("r_prime_x: \t{}", r_prime_x);
-    println!("r_x: \t\t{}", r);
-    println!("r_prime_x == r: {}", r_prime_x == r);
+    // println!("r_prime_x: \t{}", r_prime_x);
+    // println!("r_x: \t\t{}", r);
+    // println!("r_prime_x == r: {}", r_prime_x == r);
 
     return r_prime_x == r;
 }

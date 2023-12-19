@@ -13,3 +13,8 @@ crypto-primes = "*"
 sha2 = "*"
 elliptic-curve = { version = "*", features = ["arithmetic"] }
 k256 = { version = "*", features = ["arithmetic"] }
+criterion = "0.5.1"
+
+[[bench]]
+name = "my_benchmark"
+harness = false
