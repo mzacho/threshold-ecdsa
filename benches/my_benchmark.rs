@@ -1,19 +1,23 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use ecdsa::run_ecdsa_bedoza;
 use threshold_ecdsa::{
-    ecdsa::{self, run_ecdsa_plain},
+    ecdsa::{self, run_ecdsa_benchmarking, run_ecdsa_plain},
     groups,
     nat::Nat,
     schnorr::{self, run_schnorr},
 };
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("Run BeDOZa ecdsa", |b| {
+    c.bench_function("Run threshold ecdsa", |b| {
         b.iter(|| run_ecdsa_bedoza(black_box(Nat::from_u16(1337))))
     });
 
-    c.bench_function("Run plain ecdsa", |b| {
+    c.bench_function("Run non-threshold ecdsa", |b| {
         b.iter(|| run_ecdsa_plain(black_box(Nat::from_u16(1337))))
+    });
+
+    c.bench_function("Run benchmarking crypto ecdsa", |b| {
+        b.iter(|| run_ecdsa_benchmarking(black_box(Nat::from_u16(1337))))
     });
 
     let group = groups::GroupSpec::new();

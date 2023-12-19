@@ -1,11 +1,18 @@
 use std::env;
 
+use crypto_bigint::rand_core::OsRng;
 use crypto_bigint::{Encoding, NonZero};
 
 use elliptic_curve::scalar::FromUintUnchecked;
 use elliptic_curve::{ops::Mul, ops::MulByGenerator, point::AffineCoordinates, FieldBytesEncoding};
 use k256::AffinePoint;
 
+use k256::ecdsa::{Signature, SigningKey};
+use k256::schnorr::signature::Signer;
+use k256::{
+    ecdsa::{signature::Verifier, VerifyingKey},
+    EncodedPoint,
+};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -45,6 +52,27 @@ pub fn run_ecdsa_plain(message: Nat) {
     assert!(verify_signature(message, signature, pk));
 }
 
+/// Use the ECDSA protocol package for benchmarking
+/// Use https://github.com/RustCrypto/elliptic-curves/tree/master/k256
+#[allow(dead_code)]
+pub fn run_ecdsa_benchmarking(message: Nat) {
+    // Generate a keys
+
+    // Signing
+    let signing_key = SigningKey::random(&mut OsRng); // Serialize with `::to_bytes()`
+
+    // Note: The signature type must be annotated or otherwise inferable as
+    // `Signer` has many impls of the `Signer` trait (for both regular and
+    // recoverable signature types).
+    let signature: Signature = signing_key.sign(message.to_string().as_bytes());
+
+    // Verification
+
+    let verifying_key = VerifyingKey::from(&signing_key); // Serialize with `::to_encoded_point()`
+    assert!(verifying_key
+        .verify(message.to_string().as_bytes(), &signature)
+        .is_ok());
+}
 /// Sign a message with BeDOZa
 ///
 /// Using ABB+ protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
