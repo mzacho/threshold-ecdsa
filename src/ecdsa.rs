@@ -16,6 +16,8 @@ use crate::{
     shares::{NatShares, PointShares, Shares},
 };
 
+// TODO: remame to threshold instead of plain.
+
 /// Run a ECDSA protocol with BeDOZa
 ///
 /// Uses the protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
