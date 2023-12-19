@@ -14,6 +14,7 @@ pub fn mul_mod(lhs: &Nat, rhs: &Nat, modulus: &Nat) -> Nat {
     dyn_residue_lhs.mul(&dyn_residue_rhs).retrieve()
 }
 
+/// Computes `base ^ exponent mod modulus`
 pub fn pow_mod(base: &Nat, exponent: &Nat, modulus: &Nat) -> Nat {
     let dyn_residue = DynResidue::new(base, DynResidueParams::new(modulus));
     dyn_residue.pow(exponent).retrieve()

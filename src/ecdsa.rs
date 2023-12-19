@@ -73,6 +73,7 @@ pub fn run_ecdsa_benchmarking(message: Nat) {
         .verify(message.to_string().as_bytes(), &signature)
         .is_ok());
 }
+
 /// Sign a message with BeDOZa
 ///
 /// Using ABB+ protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC

@@ -94,6 +94,7 @@ pub fn run_schnorr(
     }
 }
 
+/// Preprocess the modulus of the group
 pub fn preprocess_mod(group: &GroupSpec) -> (Nat, Nat, Nat, Nat) {
     // Step 1: Agreeing on a secret random value r from Zq
     // Alice chooses a random r1 from Zq
@@ -108,6 +109,7 @@ pub fn preprocess_mod(group: &GroupSpec) -> (Nat, Nat, Nat, Nat) {
     (g_r1, g_r2, r1, r2)
 }
 
+/// Read the message from the command line arguments
 pub fn read_args_message(args: env::Args) -> Nat {
     let args: Vec<String> = args.collect();
     let m = Nat::from(args.get(2).unwrap().parse::<u32>().unwrap());
@@ -156,7 +158,6 @@ pub fn compute_e(c: Nat, m: Nat) -> Nat {
 mod tests {
 
     use super::*;
-    use crate::nat::Nat;
 
     #[test]
     fn test_schnorr_circuit() {

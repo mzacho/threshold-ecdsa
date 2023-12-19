@@ -14,13 +14,19 @@ const SCHNORR: &str = "schnorr";
 
 const AVAILABLE_CMDS: [&str; 2] = [ECDSA, SCHNORR];
 
+// Main function to run the program
+// Usage: cargo run <command> <args>
+// <command> is one of the following: "ecdsa", "schnorr"
+// <args> depends on the command
+// Example: cargo run ecdsa 1337
 fn main() {
     let cmd = read_command();
 
     match cmd.as_str() {
         SCHNORR => {
             let m = schnorr::read_args_message(args());
-            // schnorr::run_schnorr(m, true)
+            let (g_r1, g_r2, r1, r2) = schnorr::preprocess_mod(&groups::GroupSpec::new());
+            schnorr::run_schnorr(m, true, g_r1, g_r2, r1, r2, groups::GroupSpec::new())
         }
 
         ECDSA => {
