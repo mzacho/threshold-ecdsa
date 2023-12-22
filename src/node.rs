@@ -8,6 +8,9 @@ use crate::{
     shares::{NatShares, Shares},
 };
 
+/// `Gate` represents a gate in the BeDOZa circuit.
+/// It can be either an input gate, an addition gate, a multiplication gate,
+/// or an open gate.
 #[derive(Debug, Clone)]
 pub enum Gate {
     In,
@@ -18,6 +21,10 @@ pub enum Gate {
     Open,
 }
 
+/// `Const` represents a constant in the BeDOZa circuit.
+/// It can be either a literal constant, or a variable.
+/// A variable is represented by its index in the vector of
+/// constants in the `Circuit`.
 #[derive(Debug, Clone)]
 pub enum Const {
     Literal(ConstLiteral),
@@ -25,12 +32,15 @@ pub enum Const {
     MUL(usize, usize),
 }
 
+/// `ConstLiteral` represents a literal constant in the BeDOZa circuit.
+/// It can be either a natural number, or a point on the curve.
 #[derive(Debug, Clone)]
 pub enum ConstLiteral {
     Nat(Nat),
     Point(Point),
 }
 
+/// Convert a `Const` to a `ConstLiteral`
 impl ConstLiteral {
     pub fn nat(self) -> Nat {
         if let Self::Nat(n) = self {
@@ -133,13 +143,6 @@ impl Node {
             ..Node::default()
         }
     }
-
-    // pub fn in_point(s: PointShares) -> Self {
-    //     Node {
-    //         value: RefCell::new(Some(Shares::Point(s))),
-    //         ..Node::default()
-    //     }
-    // }
 }
 
 /// Converts an array of boolean values, representing the

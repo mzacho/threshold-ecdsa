@@ -14,25 +14,19 @@ use crate::{
 // Run a schnorr protocol
 // Step 1: Generate a signature on m using schnorr where the secret key has been shared between 2 parties
 // Step 2: Verify the signature
-pub fn run_schnorr(m: Nat, verbose: bool) {
-    // Create the group to work in
-    let group = GroupSpec::new();
-
+pub fn run_schnorr(
+    m: Nat,
+    verbose: bool,
+    g_r1: Nat,
+    g_r2: Nat,
+    r1: Nat,
+    r2: Nat,
+    group: GroupSpec,
+) {
     // Generate a secret key
     let sk = group.rand_exp();
     // Compute the beta of the public key
     let beta = pow_mod(&group.alpha, &sk, &group.p);
-
-    // Step 1: Agreeing on a secret random value r from Zq
-    // Alice chooses a random r1 from Zq
-    let r1 = group.rand_exp();
-    // Bob chooses a random r2 from Zq
-    let r2 = group.rand_exp();
-
-    // Alice computes g^r1 mod p and sends it to Bob
-    let g_r1 = pow_mod(&group.alpha, &r1, &group.p);
-    // Bob computes g^r2 mod p and sends it to Alice
-    let g_r2 = pow_mod(&group.alpha, &r2, &group.p);
 
     // They both compute g^r1 * g^r2 mod p = g^(r1 + r2) mod p = g^r mod p = c
     let c = mul_mod(&g_r1, &g_r2, &group.p);
@@ -100,6 +94,22 @@ pub fn run_schnorr(m: Nat, verbose: bool) {
     }
 }
 
+/// Preprocess the modulus of the group
+pub fn preprocess_mod(group: &GroupSpec) -> (Nat, Nat, Nat, Nat) {
+    // Step 1: Agreeing on a secret random value r from Zq
+    // Alice chooses a random r1 from Zq
+    let r1 = group.rand_exp();
+    // Bob chooses a random r2 from Zq
+    let r2 = group.rand_exp();
+
+    // Alice computes g^r1 mod p and sends it to Bob
+    let g_r1 = pow_mod(&group.alpha, &r1, &group.p);
+    // Bob computes g^r2 mod p and sends it to Alice
+    let g_r2 = pow_mod(&group.alpha, &r2, &group.p);
+    (g_r1, g_r2, r1, r2)
+}
+
+/// Read the message from the command line arguments
 pub fn read_args_message(args: env::Args) -> Nat {
     let args: Vec<String> = args.collect();
     let m = Nat::from(args.get(2).unwrap().parse::<u32>().unwrap());
@@ -148,11 +158,12 @@ pub fn compute_e(c: Nat, m: Nat) -> Nat {
 mod tests {
 
     use super::*;
-    use crate::nat::Nat;
 
     #[test]
     fn test_schnorr_circuit() {
         // Run through the schnorr protocol
-        run_schnorr(Nat::from_u16(1337), true);
+        let group = GroupSpec::new();
+        let (g_r1, g_r2, r1, r2) = preprocess_mod(&group);
+        // let run_schnorr(Nat::from_u16(1337), true, g_r1, g_r2, r1, r2, group);
     }
 }

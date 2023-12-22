@@ -9,6 +9,9 @@ use crate::{
     node::{ConstLiteral, Node},
 };
 
+/// A share of a value `s` is a pair of values `(x, y)` such that `x + y = s`
+/// where `x` and `y` are chosen at random from Zm
+/// and `m` is a modulus
 #[derive(Debug, Clone)]
 pub enum Shares {
     Nat(NatShares),
@@ -23,14 +26,6 @@ impl Shares {
             panic!("not a nat")
         }
     }
-
-    // pub fn point(self) -> CurveShares {
-    //     if let Self::Curve(s) = self {
-    //         s
-    //     } else {
-    //         panic!("not a point")
-    //     }
-    // }
 
     /// Reconstruct the secret from the shares
     pub fn open(self) -> ConstLiteral {
@@ -49,6 +44,7 @@ pub struct NatShares {
     pub m: NonZero<Nat>,
 }
 
+/// A multiplicative share [s] = (x, y) where x * y mod M = s
 impl NatShares {
     /// Instantiate a new share with the given `x` and `y` values
     pub fn from(x: Nat, y: Nat, m: NonZero<Nat>) -> Self {
@@ -86,6 +82,7 @@ impl NatShares {
 impl Add for Shares {
     type Output = Self;
 
+    /// Add two shares of the same type
     fn add(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (Shares::Nat(self_), Shares::Nat(rhs)) => Shares::Nat(self_ + rhs),
@@ -98,6 +95,7 @@ impl Add for Shares {
 impl Add for NatShares {
     type Output = Self;
 
+    /// Add two shares of the type NatShares
     fn add(self, rhs: Self) -> Self::Output {
         assert!(self.m == rhs.m);
         NatShares::from(
@@ -119,6 +117,7 @@ impl Add<Nat> for NatShares {
 impl Mul<Nat> for NatShares {
     type Output = Self;
 
+    /// Multiply a share of the type NatShares with a constant
     fn mul(self, rhs: Nat) -> Self::Output {
         NatShares::from(
             mul_mod(&self.x, &rhs, &self.m),
@@ -156,6 +155,7 @@ impl PointShares {
 impl Add for PointShares {
     type Output = Self;
 
+    /// Add two shares of the type PointShares
     fn add(self, rhs: Self) -> Self::Output {
         PointShares {
             s1: self.s1 + rhs.s1,
@@ -164,17 +164,10 @@ impl Add for PointShares {
     }
 }
 
-impl Add<Scalar> for PointShares {
-    type Output = Self;
-
-    fn add(self, _: Scalar) -> Self::Output {
-        todo!() // don't know if we need this?
-    }
-}
-
 impl Mul<Scalar> for PointShares {
     type Output = Self;
 
+    /// Multiply a share of the type PointShares with a scalar
     fn mul(self, rhs: Scalar) -> Self::Output {
         PointShares {
             s1: self.s1 * rhs,
@@ -182,6 +175,8 @@ impl Mul<Scalar> for PointShares {
         }
     }
 }
+
+/// -------------- tests
 
 #[cfg(test)]
 mod test {
