@@ -1,7 +1,7 @@
 use std::env;
 
 use crypto_bigint::rand_core::OsRng;
-use crypto_bigint::{Encoding, NonZero};
+use crypto_bigint::{Encoding, NonZero, ArrayEncoding};
 
 use elliptic_curve::scalar::FromUintUnchecked;
 use elliptic_curve::{ops::Mul, ops::MulByGenerator, point::AffineCoordinates, FieldBytesEncoding};
@@ -9,10 +9,8 @@ use k256::AffinePoint;
 
 use k256::ecdsa::{Signature, SigningKey};
 use k256::schnorr::signature::Signer;
-use k256::{
-    ecdsa::{signature::Verifier, VerifyingKey},
-    EncodedPoint,
-};
+use k256::
+    ecdsa::{signature::Verifier, VerifyingKey};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -134,11 +132,6 @@ fn verify_signature(m: Nat, signature: (Nat, Nat), pk: Point) -> bool {
     // Take from R' it's x coordinate r' = R'.x
     let r_prime_x: Nat = FieldBytesEncoding::decode_field_bytes(&r_prime.x());
 
-    // Calculate the signature validation result by comparing wether r' = r
-    // println!("r_prime_x: \t{}", r_prime_x);
-    // println!("r_x: \t\t{}", r);
-    // println!("r_prime_x == r: {}", r_prime_x == r);
-
     return r_prime_x == r;
 }
 
@@ -250,7 +243,7 @@ fn hash_message(m: Nat) -> Nat {
     hasher.update(&m_bytes);
     let result = hasher.finalize();
 
-    return Nat::from_le_slice(&result[..]);
+    return Nat::from_be_slice(&result[..]);
 }
 
 /// Sign a message with plain ECDSA (no BeDOZa)
@@ -340,6 +333,33 @@ mod tests_bedoza {
 #[cfg(test)]
 mod tests_plain {
     use super::*;
+    use k256::ecdsa::{signature::Verifier, Signature, SigningKey, VerifyingKey,
+    };
+
+    // Convert ECDSA signature (r, s) from nats to ecdsa::Signature
+    fn sig_from_nats(r: Nat, s: Nat) -> Signature {
+        let r_bytes = r.to_be_bytes();
+        let s_bytes = s.to_be_bytes();
+        let sig = Signature::from_scalars(r_bytes, s_bytes).unwrap();
+        sig.normalize_s().unwrap_or(sig)
+    }
+
+    #[test]
+    fn test_threshold_sign_verifies_with_rustcrypto() {
+        // Serialize a new message
+        let m = Nat::from_u8(42);
+        let message = &m.to_be_bytes();
+        // Generate keypair
+        let (sk, sks, _) = keygen();
+        let sk = SigningKey::from_slice(&sk.to_be_bytes()).unwrap();
+        // Threshold sign message
+        let (r, s) = sign_message_bedoza(m, sks);
+        let sig = sig_from_nats(r,s);
+        // let _: Signature = sk.sign(message);
+        // Verify with RustCrypto
+        let pk = VerifyingKey::from(sk);
+        assert!(pk.verify(message, &sig).is_ok());
+    }
 
     #[test]
     fn test_run_ecdsa() {

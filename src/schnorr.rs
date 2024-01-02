@@ -163,7 +163,7 @@ mod tests {
     fn test_schnorr_circuit() {
         // Run through the schnorr protocol
         let group = GroupSpec::new();
-        let (g_r1, g_r2, r1, r2) = preprocess_mod(&group);
+        let (_, _, _, _) = preprocess_mod(&group);
         // let run_schnorr(Nat::from_u16(1337), true, g_r1, g_r2, r1, r2, group);
     }
 }
