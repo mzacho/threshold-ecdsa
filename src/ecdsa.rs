@@ -1,16 +1,15 @@
 use std::env;
 
 use crypto_bigint::rand_core::OsRng;
-use crypto_bigint::{Encoding, NonZero, ArrayEncoding};
+use crypto_bigint::{Encoding, NonZero};
 
 use elliptic_curve::scalar::FromUintUnchecked;
 use elliptic_curve::{ops::Mul, ops::MulByGenerator, point::AffineCoordinates, FieldBytesEncoding};
 use k256::AffinePoint;
 
+use k256::ecdsa::{signature::Verifier, VerifyingKey};
 use k256::ecdsa::{Signature, SigningKey};
 use k256::schnorr::signature::Signer;
-use k256::
-    ecdsa::{signature::Verifier, VerifyingKey};
 use sha2::{Digest, Sha256};
 
 use crate::{
@@ -21,32 +20,34 @@ use crate::{
     shares::{NatShares, PointShares, Shares},
 };
 
-// TODO: remame to threshold instead of plain.
-
 /// Run a ECDSA protocol with BeDOZa
 ///
 /// Uses the protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
-pub fn run_ecdsa_bedoza(message: Nat) {
+pub fn run_ecdsa_threshold(message: Nat) {
     // Generate a keys
     let (_, sk_shared, pk) = keygen();
 
     // Sign message
-    let signature = sign_message_bedoza(message, sk_shared);
+    let signature = sign_message_threshold(message, sk_shared);
+
+    println!("Signature: {:?}", signature);
 
     // Verify signature
     assert!(verify_signature(message, signature, pk));
+
+    println!("Signature verified");
 }
 
 /// Run a ECDSA protocol without BeDOZa
 /// Used for benchmarking
 /// Uses the protocol from https://cryptobook.nakov.com/digital-signatures/ecdsa-sign-verify-messages
 #[allow(dead_code)]
-pub fn run_ecdsa_plain(message: Nat) {
+pub fn run_ecdsa(message: Nat) {
     // Generate a keys
     let (sk, _, pk) = keygen();
 
     // Sign message
-    let signature = sign_message_plain(message, sk);
+    let signature = sign_message(message, sk);
 
     // Verify signature
     assert!(verify_signature(message, signature, pk));
@@ -83,7 +84,7 @@ pub fn run_ecdsa_benchmarking(message: Nat) {
 /// 2. Generate circuit
 /// 3. Evaluate circuit
 /// 3. Return signature: (r, s)
-fn sign_message_bedoza(m: Nat, sk_shared: NatShares) -> (Nat, Nat) {
+fn sign_message_threshold(m: Nat, sk_shared: NatShares) -> (Nat, Nat) {
     // User independent preprocessing
     let preprocessed_tuple = user_independent_preprocessing(&curve::nonzero_order());
 
@@ -250,7 +251,7 @@ fn hash_message(m: Nat) -> Nat {
 ///
 /// Based on https://cryptobook.nakov.com/digital-signatures/ecdsa-sign-verify-messages
 #[allow(dead_code)]
-fn sign_message_plain(message: Nat, sk: Nat) -> (Nat, Nat) {
+fn sign_message(message: Nat, sk: Nat) -> (Nat, Nat) {
     // Calculate the hash of the message
     let h = hash_message(message);
 
@@ -287,12 +288,12 @@ pub fn read_args_message(args: env::Args) -> Nat {
 }
 
 #[cfg(test)]
-mod tests_bedoza {
+mod tests_threshold {
     use super::*;
 
     #[test]
     fn test_run_ecdsa() {
-        run_ecdsa_bedoza(Nat::from_u16(1337));
+        run_ecdsa_threshold(Nat::from_u16(1337));
     }
 
     #[test]
@@ -303,11 +304,11 @@ mod tests_bedoza {
             let message = curve::rand_mod_order();
 
             let (_, sk_shared, pk) = keygen();
-            let s = sign_message_bedoza(message, sk_shared);
+            let s = sign_message_threshold(message, sk_shared);
             assert!(verify_signature(message, s, pk));
             i = i + 1;
         }
-        run_ecdsa_bedoza(Nat::from_u16(1337));
+        run_ecdsa_threshold(Nat::from_u16(1337));
     }
 
     #[test]
@@ -323,7 +324,7 @@ mod tests_bedoza {
             }
 
             let (_, sk_shared, pk) = keygen();
-            let s = sign_message_bedoza(m1, sk_shared);
+            let s = sign_message_threshold(m1, sk_shared);
             assert!(!verify_signature(m2, s, pk));
             i = i + 1;
         }
@@ -333,8 +334,7 @@ mod tests_bedoza {
 #[cfg(test)]
 mod tests_plain {
     use super::*;
-    use k256::ecdsa::{signature::Verifier, Signature, SigningKey, VerifyingKey,
-    };
+    use k256::ecdsa::{signature::Verifier, Signature, SigningKey, VerifyingKey};
 
     // Convert ECDSA signature (r, s) from nats to ecdsa::Signature
     fn sig_from_nats(r: Nat, s: Nat) -> Signature {
@@ -353,8 +353,8 @@ mod tests_plain {
         let (sk, sks, _) = keygen();
         let sk = SigningKey::from_slice(&sk.to_be_bytes()).unwrap();
         // Threshold sign message
-        let (r, s) = sign_message_bedoza(m, sks);
-        let sig = sig_from_nats(r,s);
+        let (r, s) = sign_message_threshold(m, sks);
+        let sig = sig_from_nats(r, s);
         // let _: Signature = sk.sign(message);
         // Verify with RustCrypto
         let pk = VerifyingKey::from(sk);
@@ -363,7 +363,7 @@ mod tests_plain {
 
     #[test]
     fn test_run_ecdsa() {
-        run_ecdsa_plain(Nat::from_u16(1337));
+        run_ecdsa(Nat::from_u16(1337));
     }
 
     #[test]
@@ -374,11 +374,11 @@ mod tests_plain {
             let message = curve::rand_mod_order();
 
             let (sk, _, pk) = keygen();
-            let s = sign_message_plain(message, sk);
+            let s = sign_message(message, sk);
             assert!(verify_signature(message, s, pk));
             i = i + 1;
         }
-        run_ecdsa_plain(Nat::from_u16(1337));
+        run_ecdsa(Nat::from_u16(1337));
     }
 
     #[test]
@@ -394,7 +394,7 @@ mod tests_plain {
             }
 
             let (sk, _, pk) = keygen();
-            let s = sign_message_plain(m1, sk);
+            let s = sign_message(m1, sk);
             assert!(!verify_signature(m2, s, pk));
             i = i + 1;
         }

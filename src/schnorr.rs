@@ -14,7 +14,7 @@ use crate::{
 // Run a schnorr protocol
 // Step 1: Generate a signature on m using schnorr where the secret key has been shared between 2 parties
 // Step 2: Verify the signature
-pub fn run_schnorr(
+pub fn run_schnorr_threshold(
     m: Nat,
     verbose: bool,
     g_r1: Nat,
@@ -51,7 +51,9 @@ pub fn run_schnorr(
     let result = circuit.eval();
 
     // Open the result to get the second component z of the signature
-    let z = result.open().nat();
+    let s = result.open().nat();
+
+    println!("Signature: ({:?}, {:?})", e, s);
 
     // Compute beta inverted in mod p
     let (beta_inv, choice) = beta.inv_mod(&group.p);
@@ -63,7 +65,7 @@ pub fn run_schnorr(
 
     // Compute c_verify = g^z * beta^-e mod p
     let c_verify = mul_mod(
-        &pow_mod(&group.alpha, &z, &group.p),
+        &pow_mod(&group.alpha, &s, &group.p),
         &pow_mod(&beta_inv, &e, &group.p),
         &group.p,
     );
@@ -81,7 +83,7 @@ pub fn run_schnorr(
         println!("c: {:?}", c);
         println!("e: {:?}", e);
         println!("sk: {:?}", sk);
-        println!("z: {:?}", z);
+        println!("z: {:?}", s);
         println!("beta: {:?}", beta);
         println!("e_inv: {:?}", beta_inv);
         println!("c_verify: {:?}", c_verify);
@@ -92,6 +94,8 @@ pub fn run_schnorr(
     if e_verify != e {
         panic!("Signature is not valid");
     }
+
+    println!("Signature verified");
 }
 
 /// Preprocess the modulus of the group
@@ -163,7 +167,7 @@ mod tests {
     fn test_schnorr_circuit() {
         // Run through the schnorr protocol
         let group = GroupSpec::new();
-        let (_, _, _, _) = preprocess_mod(&group);
-        // let run_schnorr(Nat::from_u16(1337), true, g_r1, g_r2, r1, r2, group);
+        let (g_r1, g_r2, r1, r2) = preprocess_mod(&group);
+        run_schnorr_threshold(Nat::from_u16(1337), true, g_r1, g_r2, r1, r2, group);
     }
 }

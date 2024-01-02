@@ -22,16 +22,27 @@ const AVAILABLE_CMDS: [&str; 2] = [ECDSA, SCHNORR];
 fn main() {
     let cmd = read_command();
 
+    println!("Running command: {}", cmd);
+
     match cmd.as_str() {
         SCHNORR => {
             let m = schnorr::read_args_message(args());
-            let (g_r1, g_r2, r1, r2) = schnorr::preprocess_mod(&groups::GroupSpec::new());
-            schnorr::run_schnorr(m, true, g_r1, g_r2, r1, r2, groups::GroupSpec::new())
+            let group = groups::GroupSpec::new();
+            let (g_r1, g_r2, r1, r2) = schnorr::preprocess_mod(&group);
+            schnorr::run_schnorr_threshold(
+                m,
+                false,
+                g_r1,
+                g_r2,
+                r1,
+                r2,
+                group,
+            );
         }
 
         ECDSA => {
             let m = ecdsa::read_args_message(args());
-            ecdsa::run_ecdsa_bedoza(m)
+            ecdsa::run_ecdsa_threshold(m);
         }
         _ => panic!(
             "Use one of the following commands: \"{cmds}\"",
