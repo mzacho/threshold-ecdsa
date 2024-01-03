@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use ecdsa::run_ecdsa_threshold;
+use ecdsa::run_threshold_ecdsa;
 use threshold_ecdsa::{
-    ecdsa::{self, run_ecdsa_benchmarking, run_ecdsa},
+    ecdsa::{self, run_ecdsa, run_ecdsa_benchmarking},
     groups,
     nat::Nat,
     schnorr::{self, run_schnorr_threshold},
@@ -9,7 +9,7 @@ use threshold_ecdsa::{
 
 fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("Run threshold ecdsa", |b| {
-        b.iter(|| run_ecdsa_threshold(black_box(Nat::from_u16(1337))))
+        b.iter(|| run_threshold_ecdsa(black_box(Nat::from_u16(1337))))
     });
 
     c.bench_function("Run non-threshold ecdsa", |b| {

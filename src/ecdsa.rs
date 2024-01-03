@@ -1,5 +1,3 @@
-use std::env;
-
 use crypto_bigint::rand_core::OsRng;
 use crypto_bigint::{Encoding, NonZero};
 
@@ -20,15 +18,16 @@ use crate::{
     shares::{NatShares, PointShares, Shares},
 };
 
-/// Run a ECDSA protocol with BeDOZa
+/// Signs message using threshold ECDSA and asserts that the signature
+/// is valid for the message.
 ///
 /// Uses the protocol from Securing DNSSEC Keys via Threshold ECDSA From Generic MPC
-pub fn run_ecdsa_threshold(message: Nat) {
+pub fn run_threshold_ecdsa(message: Nat) {
     // Generate a keys
     let (_, sk_shared, pk) = keygen();
 
     // Sign message
-    let signature = sign_message_threshold(message, sk_shared);
+    let signature = threshold_sign_message(message, sk_shared);
 
     println!("Signature: {:?}", signature);
 
@@ -38,7 +37,8 @@ pub fn run_ecdsa_threshold(message: Nat) {
     println!("Signature verified");
 }
 
-/// Run a ECDSA protocol without BeDOZa
+/// Signs message using plain ECDSA and asserts the signature is valid.
+///
 /// Used for benchmarking
 /// Uses the protocol from https://cryptobook.nakov.com/digital-signatures/ecdsa-sign-verify-messages
 #[allow(dead_code)]
@@ -60,16 +60,12 @@ pub fn run_ecdsa_benchmarking(message: Nat) {
     // Generate a keys
 
     // Signing
-    let signing_key = SigningKey::random(&mut OsRng); // Serialize with `::to_bytes()`
+    let signing_key = SigningKey::random(&mut OsRng);
 
-    // Note: The signature type must be annotated or otherwise inferable as
-    // `Signer` has many impls of the `Signer` trait (for both regular and
-    // recoverable signature types).
     let signature: Signature = signing_key.sign(message.to_string().as_bytes());
 
     // Verification
-
-    let verifying_key = VerifyingKey::from(&signing_key); // Serialize with `::to_encoded_point()`
+    let verifying_key = VerifyingKey::from(&signing_key);
     assert!(verifying_key
         .verify(message.to_string().as_bytes(), &signature)
         .is_ok());
@@ -84,7 +80,7 @@ pub fn run_ecdsa_benchmarking(message: Nat) {
 /// 2. Generate circuit
 /// 3. Evaluate circuit
 /// 3. Return signature: (r, s)
-fn sign_message_threshold(m: Nat, sk_shared: NatShares) -> (Nat, Nat) {
+fn threshold_sign_message(m: Nat, sk_shared: NatShares) -> (Nat, Nat) {
     // User independent preprocessing
     let preprocessed_tuple = user_independent_preprocessing(&curve::nonzero_order());
 
@@ -280,20 +276,13 @@ fn sign_message(message: Nat, sk: Nat) -> (Nat, Nat) {
     (r_x, s)
 }
 
-/// Read message after "ecdsa" from command line arguments
-pub fn read_args_message(args: env::Args) -> Nat {
-    let args: Vec<String> = args.collect();
-    let m = Nat::from(args.get(2).unwrap().parse::<u128>().unwrap());
-    m
-}
-
 #[cfg(test)]
 mod tests_threshold {
     use super::*;
 
     #[test]
     fn test_run_ecdsa() {
-        run_ecdsa_threshold(Nat::from_u16(1337));
+        run_threshold_ecdsa(Nat::from_u16(1337));
     }
 
     #[test]
@@ -304,11 +293,11 @@ mod tests_threshold {
             let message = curve::rand_mod_order();
 
             let (_, sk_shared, pk) = keygen();
-            let s = sign_message_threshold(message, sk_shared);
+            let s = threshold_sign_message(message, sk_shared);
             assert!(verify_signature(message, s, pk));
             i = i + 1;
         }
-        run_ecdsa_threshold(Nat::from_u16(1337));
+        run_threshold_ecdsa(Nat::from_u16(1337));
     }
 
     #[test]
@@ -324,7 +313,7 @@ mod tests_threshold {
             }
 
             let (_, sk_shared, pk) = keygen();
-            let s = sign_message_threshold(m1, sk_shared);
+            let s = threshold_sign_message(m1, sk_shared);
             assert!(!verify_signature(m2, s, pk));
             i = i + 1;
         }
@@ -353,7 +342,7 @@ mod tests_plain {
         let (sk, sks, _) = keygen();
         let sk = SigningKey::from_slice(&sk.to_be_bytes()).unwrap();
         // Threshold sign message
-        let (r, s) = sign_message_threshold(m, sks);
+        let (r, s) = threshold_sign_message(m, sks);
         let sig = sig_from_nats(r, s);
         // let _: Signature = sk.sign(message);
         // Verify with RustCrypto

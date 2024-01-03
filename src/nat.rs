@@ -3,8 +3,7 @@ use crypto_bigint::{
     U256,
 };
 
-/// Natural numbers represented as cryptographically safe big unsigned
-/// integers. Arithmetic operations are checked for overflow at run-time
+/// Natural numbers represented as cryptographically safe big unsigned integers.
 pub type Nat = U256;
 
 /// Computes `lhs * rhs mod modulus`

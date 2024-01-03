@@ -15,8 +15,9 @@ pub struct GroupSpec {
 }
 
 impl GroupSpec {
-    /// TODO: Constructs a new group spec with security parameter k
-    /// i.e. k is the bitsize of q = M
+    /// Constructs a new GroupSpec with a random 256 bit safe
+    /// primes p and q with p = 2q+1 and a random generator of the
+    /// subgroup from Zp of prime order q.
     pub fn new() -> GroupSpec {
         let (p, q) = generate_safe_primes();
         let alpha = compute_group_generator(p, q);
@@ -29,11 +30,9 @@ impl GroupSpec {
     }
 }
 
-/// Generate a generator of Zp* using rejection sampling
-fn compute_group_generator(
-    p: NonZero<crypto_bigint::Uint<4>>,
-    q: NonZero<crypto_bigint::Uint<4>>,
-) -> crypto_bigint::Uint<4> {
+/// Generate a generator of Zp* using rejection sampling from the
+/// lecture notes
+fn compute_group_generator(p: NonZero<Nat>, q: NonZero<Nat>) -> Nat {
     let mut x = Nat::random_mod(&mut OsRng, &p);
     // While x^q mod p != 1 try with a new random x
     while pow_mod(&x, &q, &p) != Nat::ONE {
@@ -43,13 +42,10 @@ fn compute_group_generator(
 }
 
 /// Generate a safe prime p = 2q + 1, where q is the associated Sophie Germain prime
-fn generate_safe_primes() -> (
-    NonZero<crypto_bigint::Uint<4>>,
-    NonZero<crypto_bigint::Uint<4>>,
-) {
-    let p: NonZero<crypto_bigint::Uint<4>> =
-        NonZero::new(generate_safe_prime(Option::None)).unwrap();
-    let qinit: crypto_bigint::Uint<4> = p
+/// Uses crypto-primes library
+fn generate_safe_primes() -> (NonZero<Nat>, NonZero<Nat>) {
+    let p: NonZero<Nat> = NonZero::new(generate_safe_prime(Option::None)).unwrap();
+    let qinit: Nat = p
         .wrapping_sub(&Nat::ONE)
         .checked_div(&Nat::from(2_u32))
         .unwrap();

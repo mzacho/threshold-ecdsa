@@ -1,5 +1,3 @@
-use std::env;
-
 use crypto_bigint::Encoding;
 use sha2::{Digest, Sha256};
 
@@ -11,10 +9,11 @@ use crate::{
     shares::NatShares,
 };
 
-// Run a schnorr protocol
-// Step 1: Generate a signature on m using schnorr where the secret key has been shared between 2 parties
-// Step 2: Verify the signature
-pub fn run_schnorr_threshold(
+/// Sign m using threshold Schnorr and assert that the signature is valid for the message
+///
+/// Step 1: Generate a signature on m using schnorr where the secret key has been shared between 2 parties
+/// Step 2: Verify the signature
+pub fn run_treshold_schnorr(
     m: Nat,
     verbose: bool,
     g_r1: Nat,
@@ -113,14 +112,12 @@ pub fn preprocess_mod(group: &GroupSpec) -> (Nat, Nat, Nat, Nat) {
     (g_r1, g_r2, r1, r2)
 }
 
-/// Read the message from the command line arguments
-pub fn read_args_message(args: env::Args) -> Nat {
-    let args: Vec<String> = args.collect();
-    let m = Nat::from(args.get(2).unwrap().parse::<u32>().unwrap());
-    m
-}
-
-// Schnorr circuit
+/// Schnorr circuit consists of four nodes:
+///
+/// 1. An input node for the secret key
+/// 2. An input node for the random
+/// 3. A mul node for computing e * [sk]
+/// 4. An add node for computing [r] + [e * sk]
 pub fn schnorr_circuit(r: NatShares, sk: NatShares, e: Nat) -> Circuit {
     // Check that the modulus of the shares are the same
     assert!(r.m == sk.m);
@@ -168,6 +165,6 @@ mod tests {
         // Run through the schnorr protocol
         let group = GroupSpec::new();
         let (g_r1, g_r2, r1, r2) = preprocess_mod(&group);
-        run_schnorr_threshold(Nat::from_u16(1337), true, g_r1, g_r2, r1, r2, group);
+        run_treshold_schnorr(Nat::from_u16(1337), true, g_r1, g_r2, r1, r2, group);
     }
 }
